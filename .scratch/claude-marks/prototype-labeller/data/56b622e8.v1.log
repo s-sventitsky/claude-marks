@@ -1,0 +1,10 @@
+  1 new_main  t1 'Claude Code plugins'            [] User asks whether Claude Code supports plugins; explained pl
+  2 continue  t1 'Claude Code plugins'            [] Explained mods: what they can hook into and how to build one
+  3 new_sub   t2 'Bookmarks mod idea'             [] Bookmark idea for navigating; reply drafted CLAUDE.md docs i
+  4 continue  t2 'Bookmarks mod idea'             ['landmark'] User approved; four agent-skills docs files written.
+  5 continue  t2 'Bookmarks mod idea'             ['branch_point'] Grilled bookmark mod design: destination, threads vs bookmar
+  6 continue  t2 'Bookmarks mod idea'             ['landmark'] Answered design questions; confirmed destination for the boo
+  7 continue  t2 'Bookmarks mod idea'             ['landmark'] Confirmed one-level thread depth and the spec destination
+  8 continue  t2 'Bookmarks mod idea'             ['landmark'] Chose auto-bookmarks for branch points and landmarks; retro-
+  9 continue  t2 'Bookmarks mod idea'             ['landmark'] Charted mod map: spec, research tickets, CONTEXT.md glossary
+cost reported by CLI: $0.0062

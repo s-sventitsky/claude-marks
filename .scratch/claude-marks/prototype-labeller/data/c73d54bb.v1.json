@@ -1,0 +1,291 @@
+{
+ "model": "haiku",
+ "costUsd": 0.0075,
+ "threads": [
+  {
+   "id": "t1",
+   "label": "Marks spike side panel",
+   "parent": null,
+   "gists": [
+    "Diamond missing from panel; explained it sits on prompt rows, next test steps given",
+    "User sent a plain test prompt; Claude replied and listed marker-check steps",
+    "User reported pane focus, ctrl+x m, and grey-view problems; logged",
+    "Screenshots reviewed; ctrl-x dropped for /spike command and status line",
+    "User proposes agent-style status line hint with shortcut and feature name",
+    "Confirmed /spike keyboard shortcuts work in VS Code; recorded on ticket 07.",
+    "Scoped jump list to current chat; run 4 recorded on ticket 07.",
+    "Confirmed resumed copies miss later prompts; ids survive /resume, recorded on ticket.",
+    "Resumed chat showed zero jump entries; proposed two causes to test",
+    "Post-scroll prompts jump correctly; added /spike-file to test pre-compact rows.",
+    "F17 jumped, F1 refused; spike resolved, ticket closed",
+    "Lists three open tickets; recommends Main-screen behaviour grilling next."
+   ]
+  }
+ ],
+ "exchanges": [
+  {
+   "uuid": "31a6fc26-ce30-4156-8970-aeeb15dbe32c",
+   "n": 1,
+   "prompt": "I can't see square simbol in side panel, this is what inside of it\n\n\n<pasted_content id=\"d5c7\">\nterminal 208x43 fullscreen=true\nappends 0 · rendered 1 · matched 0\nfold: off [ off ][ line ][ none ]\n[ refresh ][ dump log ]\njump #1 (render): deny: nothing drawn under that requestId\n#1* /spike\n</pasted_content id=\"d5c7\">\n",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research && ls spike-07 2>&1 && cat spike-0",
+    "Bash find /e/CodeExperiments /c/Users/Sergey\\ Sventitsky/.claude/dev-mods -path \"*spike-07*\" 2>/dev/null ",
+    "Bash cat .scratch/claude-marks/research/spike-07/*.json",
+    "Bash cd \"/c/Users/Sergey Sventitsky/.claude/dev-mods/c73d54bb-3160-457b-bc5e-0add48b6ce76/marks-spike/hoo",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike"
+   ],
+   "reply": "The side panel itself looks right. The `◆` belongs on prompt rows in the transcript, to the left of each `>` line, not in the pane. You saw none because no ordinary prompt row has been drawn since the mod loaded. The only user row it saw was your `/spike` command.\n\n**What run 1 showed** (recorded on the ticket):\n- **Your setup:** the VS Code terminal is 208×43 and in fullscreen mode, so the pane can dock beside the transcript.\n- **Pane clicks:** a mouse click on a pane button reaches the mod.\n- **Slash-command rows can't be jump targets.** The `/spike` row is drawn with the id `\"placeholder\"`. The jump to it was refused with \"nothing drawn under that requestId\". A slash command also isn't recorded as a stored prompt.\n\nI made three fixes, and the mod reloads when this turn ends:\n- It now writes its log to an absolute path. The first log had landed in a nested folder because the session's working directory had changed. I copied its contents onto the ticket and deleted the misplaced file.\n- It now records the origin of every user row, so we can tell whether older prompts are drawn as some origin other than your own prompt.\n- The jump list now skips slash-command rows.\n\n**Next steps:**\n1. Send a plain prompt, such as `ping`, not a slash command.\n2. Look for `◆` at the left of the `> ping` row in the transcript, and click it.\n3. In the pane, press `refresh`. `appends` and `matched` should both read 1. Press the `#1` jump button.\n4. Then press **ctrl+x tab** and **m**, and try the `line` / `none` / `off` fold buttons.\n\nTell me what you see, especially whether `◆` appears and whether the jump moved the transcript. I'll read the rest from the log.",
+   "thread": "t1",
+   "action": "new_main",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Spike run 1 results recorded on ticket 07"
+    }
+   ],
+   "gist": "Diamond missing from panel; explained it sits on prompt rows, next test steps given",
+   "secs": 4.9,
+   "tokensIn": 2931,
+   "tokensOut": 378
+  },
+  {
+   "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+   "n": 2,
+   "prompt": "pingpong",
+   "tools": [
+    "Bash cat /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07/*.json 2>&1 | head -80"
+   ],
+   "reply": "Pong. Your `pingpong` prompt is now a real stored prompt row, so the mod has something to mark. The first log will be written when this turn ends.\n\nOnce I've replied:\n1. Look for `◆` at the left of the `> pingpong` row in the transcript, and click it.\n2. In the pane, press `refresh`. `appends` and `matched` should both read 1. Then press the `#1` jump button and see whether the transcript moves.\n3. Press **ctrl+x tab**, then **m**.\n4. Try the `line` / `none` / `off` fold buttons and watch the transcript.\n\nThen tell me what you saw.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [],
+   "gist": "User sent a plain test prompt; Claude replied and listed marker-check steps",
+   "secs": 3.7,
+   "tokensIn": 2805,
+   "tokensOut": 176
+  },
+  {
+   "uuid": "c2b92584-8d6b-48fd-9deb-03eac83ea4fc",
+   "n": 3,
+   "prompt": "panel only updates with new entry when I'm put in the focus\nhotkeys ctrl-x, m doesnt' work\ndifferent views - hard to read, because everything is same shade of grey, no idea what to focus on",
+   "tools": [
+    "Bash cat /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07/*.json",
+    "Bash cat >> issues/07-row-identity-jump-spike.md <<'EOF'"
+   ],
+   "reply": "Thanks. The log confirms the biggest question in the ticket.\n\n**Confirmed**\n- **Row identity matches.** For both of your prompts, the id stored with the prompt equals the id of its row on screen. One of them was recorded before the mod reloaded, and it still matched. Before a prompt is saved, its row is drawn under a temporary id (`placeholder`), then redrawn under the real one. The real mod has to skip that temporary id.\n- **The jump to `pingpong` reported success.**\n- **The docked pane takes width.** With the pane open, the transcript column shrank from 208 to 118 columns.\n\n**Your three observations**\n1. **The pane only updated when it had focus.** That's my spike's fault, not a limit of Claude Code. The pane reads values the engine doesn't watch, so nothing told it to redraw. The real mod will keep its list in the session state the engine watches, so the pane redraws as entries arrive.\n2. **ctrl+x tab, then m, did nothing.** The log agrees: the band never received a press. I've noted it as a finding. This matters, because the planned keyboard-first design depends on ctrl+x tab.\n3. **The folded views were hard to read.** Everything was the same grey with no clear focus. I've recorded this as feedback for the **UI: band, pane and inline markers** ticket. Real folding needs contrast: the current thread bright, the others dim.\n\nFour quick questions to finish this part:\n1. Did you see a line reading **\"spike band\"** with a `band hotkey (m)` button just above the prompt? If not, the band didn't draw at all, which is a different finding from \"keys don't reach it\".\n2. Did you see a `◆` at the left of the `> pingpong` row? If so, did clicking it do anything? No click on it was recorded.\n3. With `none` on, did the rows actually disappear? With `line` on, did each row become one line?\n4. When you pressed `#2` (pingpong), did the transcript visibly move? The row may already have been on screen.\n\nAfter that, the remaining steps are the resumed long conversation (for jump reach), `--resume` on a short one (for identity), and the main screen.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Spike row identity confirmed from logged data"
+    }
+   ],
+   "gist": "User reported pane focus, ctrl+x m, and grey-view problems; logged",
+   "secs": 4.1,
+   "tokensIn": 3059,
+   "tokensOut": 262
+  },
+  {
+   "uuid": "390a2bbf-6dcb-4b74-a63a-5c9a9f0ce35d",
+   "n": 4,
+   "prompt": "we could drop a ctrl-x and go with command and item in the status line\n1. no idea what are talking about here, give me step to reproduce\n2. i see square glyph in the main convo, but is't missalign and took whole row\n3. I've got screenshot for line and none in the spike-07 folder\n4. Yes it moves",
+   "tools": [
+    "Bash ls -la /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07/",
+    "Read E:\\CodeExperiments\\claude-marks\\.scratch\\claude-marks\\research\\spike-07\\line.png",
+    "Read E:\\CodeExperiments\\claude-marks\\.scratch\\claude-marks\\research\\spike-07\\none.png",
+    "Bash cat >> issues/07-row-identity-jump-spike.md <<'EOF'",
+    "Bash cd \"C:/Users/SERGEY~1/AppData/Local/Temp/claude/bundled-skills/2.1.296/5fd3a4568d15a992e3ddb2faf5c6a",
+    "Bash cd \"C:/Users/SERGEY~1/AppData/Local/Temp/claude/bundled-skills/2.1.296/5fd3a4568d15a992e3ddb2faf5c6a",
+    "Bash cd \"/c/Users/Sergey Sventitsky/.claude/dev-mods/c73d54bb-3160-457b-bc5e-0add48b6ce76/marks-spike/hoo"
+   ],
+   "reply": "Your screenshots answered most of what I asked.\n\n**Question 1 is already answered.** The \"spike band\" line was the `spike band [ band hotkey (m) ]` row just above your prompt. It's visible in both screenshots, so the band draws fine. Only the ctrl+x tab → `m` key path failed. No steps to reproduce needed.\n\n**From the screenshots** (recorded on the ticket):\n- **Folding works for prompt and reply rows.** `line` shrinks each one to a single line, and `none` removes them entirely.\n- **Some rows never fold.** Collapsed tool groups (\"Read 1 file, ran 1 shell command\"), the \"Worked for … · done\" footers, notification rows and slash-command rows stayed visible. A focus mode would only ever be partial.\n- **The `◆` is misaligned and takes a whole row.** That's my layout: the engine draws a blank spacer line above each message, and I put the glyph beside it. The real mod can place it properly, so this isn't a platform limit.\n- **The jump works.** You confirmed it moved the transcript.\n\n**Your direction (drop ctrl+x, use a command plus a status-line item)** fits the API with one caveat: the status line is plain text, so it can show where you are but can't be clicked. A command can open the pane with keyboard focus, though, so no chord is needed. I've added that to the spike, and it reloads when this turn ends.\n\n**Next steps**, in this session:\n1. Run `/spike`. The pane should open with keyboard focus. Press `l`, `n` and `o` to switch fold modes, and `r` to refresh. Tell me whether the keys work.\n2. Send any prompt. The bottom of the screen should then show `marks-spike: N prompts · /spike`.\n\nAfter that, three short runs, each in a **separate** VS Code terminal, finish the ticket:\n- **Resume identity:** run `claude --plugin-dir \"C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike\"` and send `alpha`. Exit, then run `claude --continue --plugin-dir \"<same path>\"`. Run `/spike` and press `r`. `matched` should include alpha.\n- **Jump reach:** run `claude --resume --plugin-dir \"<same path>\"` and pick a long conversation. Run `/spike` and press `r`. The `*` entries are old prompts the transcript has drawn. Jump to `#1`, the oldest, and to one in the middle.\n- **Main screen:** in PowerShell, run `$env:CLAUDE_CODE_NO_FLICKER=0; claude --plugin-dir \"<same path>\"`. Send `beta`, run `/spike` and try a jump.\n\nThe log for each run is written to `research/spike-07/` by itself. Just tell me anything you see that a log can't capture.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Dropped ctrl-x chord for command and status line"
+    }
+   ],
+   "gist": "Screenshots reviewed; ctrl-x dropped for /spike command and status line",
+   "secs": 4.4,
+   "tokensIn": 3912,
+   "tokensOut": 339
+  },
+  {
+   "uuid": "a26c4fb4-436c-4881-b154-edc07adf53df",
+   "n": 5,
+   "prompt": "on the status line, we could use agents approach - have a text with shortcut to use + name of the feature\n/spike",
+   "tools": [
+    "Skill keybindings-help",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && ls; python -c \"",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike",
+    "AskUserQuestion"
+   ],
+   "reply": "",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [],
+   "gist": "User proposes agent-style status line hint with shortcut and feature name",
+   "secs": 4.3,
+   "tokensIn": 2773,
+   "tokensOut": 262
+  },
+  {
+   "uuid": "56c236e2-cb47-4dae-9c98-72b881a86c6c",
+   "n": 6,
+   "prompt": "yes, shortcuts worked",
+   "tools": [
+    "Bash cat >> issues/07-row-identity-jump-spike.md <<'EOF'"
+   ],
+   "reply": "Good. That settles keyboard entry: `/spike` opened the pane with focus, and its single-key shortcuts worked in the VS Code terminal with no ctrl+x chord. I've recorded it on the ticket.\n\n**What's settled so far**\n- Fullscreen in your VS Code terminal: yes. The terminal is 208×43, and the transcript column shrinks to 118 when the pane is docked.\n- Row identity: the id stored with a prompt matches the id of its row on screen, including after a mod reload.\n- Jumps: they work and visibly move the transcript.\n- Folding: prompt and reply rows fold to one line or disappear. Tool groups, turn footers, notifications and slash-command rows don't.\n- Mouse clicks on pane buttons work. A command can open the pane with keyboard focus. ctrl+x tab didn't work, and a mod can't bind its own global shortcut.\n- The status line is plain text. Your idea of showing the feature name plus how to open it, like the agents indicator, is noted for the **UI: band, pane and inline markers** ticket.\n\n**Still open**, each in a **separate** VS Code terminal (`<mod>` = `C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike`):\n1. **Identity after resume:** run `claude --plugin-dir \"<mod>\"` and send `alpha`. Exit, then run `claude --continue --plugin-dir \"<mod>\"`. Run `/spike` and press `r`. Check whether `matched` counts alpha.\n2. **Jump reach:** run `claude --resume --plugin-dir \"<mod>\"` and pick your longest conversation. Run `/spike` and press `r`. Note how many `*` entries appear, then jump to `#1` (the oldest) and to one in the middle.\n3. **Main screen:** run `$env:CLAUDE_CODE_NO_FLICKER=0; claude --plugin-dir \"<mod>\"`. Send `beta`, run `/spike` and try a jump.\n\nEach run writes its own log to `research/spike-07/`, so tell me when you're done, plus anything visual. If you'd rather skip run 3, say so. Requiring fullscreen is a question for the **Main-screen behaviour: require fullscreen or degrade?** ticket, and that answer may make the test unnecessary.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Keyboard entry confirmed; /spike shortcuts work"
+    }
+   ],
+   "gist": "Confirmed /spike keyboard shortcuts work in VS Code; recorded on ticket 07.",
+   "secs": 4.0,
+   "tokensIn": 2885,
+   "tokensOut": 244
+  },
+  {
+   "uuid": "bcfa4f02-d0dc-486a-9597-b75cc9483bbb",
+   "n": 7,
+   "prompt": "matched count save as alpha, and just in case marks from different chats in the same place, I guess it because we not yet separate data by convos",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && python -c \"",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike",
+    "Bash cd \"/c/Users/Sergey Sventitsky/.claude/dev-mods/c73d54bb-3160-457b-bc5e-0add48b6ce76/marks-spike/hoo"
+   ],
+   "reply": "The jump list now only shows prompts from the conversation you're in.\n\n**Run 4 results** (recorded on the ticket):\n- `alpha` kept the same id after you exited and ran `--continue`, so the prompt-row identity survives a resume.\n- The size the mod sees follows your VS Code panel. It was 208×9 and 135×18 in the smaller panels, and still fullscreen in both.\n- Slash-command rows like `/spike` can't be jumped to, even when they're drawn with a real id.\n\nTwo runs are left:\n\n1. **Jump reach** (the main remaining question): run `claude --resume --plugin-dir \"<mod>\"` and pick your longest conversation. Run `/spike` and press `r`. Tell me roughly how many `*` entries appear compared with how many prompts the conversation has. Then jump to the first `*` entry, one in the middle and the last one. Note any that are refused, and whether scrolling up first changes the count.\n2. **Main screen** (optional): run `$env:CLAUDE_CODE_NO_FLICKER=0; claude --plugin-dir \"<mod>\"`. Send `beta`, run `/spike` and try a jump.\n\nHere `<mod>` is `C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike`.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Spike run 4 results recorded on ticket"
+    }
+   ],
+   "gist": "Scoped jump list to current chat; run 4 recorded on ticket 07.",
+   "secs": 4.7,
+   "tokensIn": 3200,
+   "tokensOut": 518
+  },
+  {
+   "uuid": "8113ff53-cfcc-4029-89b2-9c818df0ea6c",
+   "n": 8,
+   "prompt": "So I've call resume without new session and it preserve messages from both, but since resume one is older, some newest items don't have entry point, because those not yet happen",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && ls -t | head; python -",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike",
+    "Bash cd \"/c/Users/Sergey Sventitsky/.claude/projects\" && for f in */*.jsonl; do n=$(grep -c '\"type\":\"user"
+   ],
+   "reply": "You've got it right: the resumed copy is a snapshot taken at that point, so prompts made later in the live session aren't in it, and the jump list can't reach them. Run 5 also gave two useful facts:\n- **Ids survive `/resume`.** All 7 of this conversation's prompts kept their ids in the resumed copy, and jumps to them worked.\n- **`/resume` inside a running session switches conversations, but the mod's in-memory list carries over.** That's why `alpha` from the other chat stayed listed, and jumping to it was refused. The real mod has to reset its list when the conversation changes. I've recorded this on the ticket.\n\nThe one fact still missing is **how far back a jump reaches in a long conversation**. Our test chats have under 10 prompts. Your longest saved conversation is in `awakened-foundry`, with about 219 user rows (prompts plus tool results). To test it:\n\n```powershell\ncd E:\\CodeExperiments\\awakened-foundry\nclaude --resume 1ebd82e3-1644-496e-b865-2f700ec4a35f --plugin-dir \"C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike\"\n```\n\nThen:\n1. Run `/spike`, press `r`, and note how many `*` entries appear.\n2. Jump to the first one (the oldest), one in the middle and the last one. Note any that are refused.\n3. Scroll the transcript to the very top, press `r` again, and see whether the count grows.\n\nThe log is written to this repo whichever folder you start from. Skip the main-screen run unless you want it. That question belongs to the **Main-screen behaviour: require fullscreen or degrade?** ticket.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Run 5 results recorded: ids survive resume"
+    }
+   ],
+   "gist": "Confirmed resumed copies miss later prompts; ids survive /resume, recorded on ticket.",
+   "secs": 4.7,
+   "tokensIn": 3303,
+   "tokensOut": 425
+  },
+  {
+   "uuid": "d5154a79-227b-4a24-bc52-0635ba932315",
+   "n": 9,
+   "prompt": "zero appears, used hotkey and clicked on btn in the panel",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && python -c \"",
+    "Bash cd /tmp; F=\"/c/Users/Sergey Sventitsky/.claude/projects/E--CodeExperiments-awakened-foundry/1ebd82e3",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike"
+   ],
+   "reply": "Zero entries is a real result, not something you did wrong. In that resumed conversation the mod never saw a single old prompt row being drawn, so it had nothing to list.\n\nI checked its transcript file. \"Long\" was misleading:\n- It has 1,232 rows, but only **19 of them are your prompts**. The rest are tool calls and results.\n- **16 of those 19 come before a compaction** (row 752). Only 3 come after it: \"What the question about?\", \"do those fully customizable components?\" and \"fare\".\n\nThere are two possible causes, and they lead to different designs:\n- **A:** the resumed transcript doesn't draw the history from before compaction at all. Then rows before a compaction can never be jumped to, and the spec has to say what the list shows for them.\n- **B:** rows are only drawn when they scroll into view. Then even the 3 recent prompts stay unknown until you scroll up to them, and the real mod must take its row ids from the transcript file instead of from drawn rows.\n\nOne test separates the two. In that same resumed session:\n1. Scroll the transcript up with the mouse wheel or PageUp, as far as it goes.\n2. Do you see **\"fare\"** or **\"What the question about?\"**? Further up, do you see older prompts like **\"ok let's start with docs and cleanups\"** or **\"hey, we've got matt's skills setuped, right?\"**? Or does it stop at a compaction summary?\n3. Run `/spike` again, press `r`, and tell me how many `*` entries appear now. If there are any, jump to the first one.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "branch_point",
+     "why": "Two causes for zero entries, A or B"
+    }
+   ],
+   "gist": "Resumed chat showed zero jump entries; proposed two causes to test",
+   "secs": 3.8,
+   "tokensIn": 3200,
+   "tokensOut": 295
+  },
+  {
+   "uuid": "66d3b7a0-f03e-4df7-8b69-ea4612d7de7a",
+   "n": 10,
+   "prompt": "I so fare, and what question about, but yearliest message is I believe compact one 'I'll take the docs and cleanup issues: SSV-23, SSV-24,...'\nitems in the panel match it and navigation works",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && python -c \"",
+    "Bash ls -la \"/c/Users/Sergey Sventitsky/.claude/projects/E--CodeExperiments-awakened-foundry/1ebd82e3-164",
+    "Bash M=\"/c/Users/Sergey Sventitsky/.claude/dev-mods/c73d54bb-3160-457b-bc5e-0add48b6ce76/marks-spike\"; cd",
+    "Read C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike\\hooks\\r",
+    "Edit C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike\\hooks\\r",
+    "Bash cd \"/c/Users/Sergey Sventitsky/.claude/dev-mods/c73d54bb-3160-457b-bc5e-0add48b6ce76/marks-spike\" &&",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat >> issues/07-row-identity-jump-spike"
+   ],
+   "reply": "That settles both possibilities. Both are true:\n- **History from before a compaction is not drawn.** The earliest row is the compaction summary, so the 16 older prompts can't be jumped to at all.\n- **Rows are only drawn once they scroll into view.** After you scrolled up, the 3 recent prompts showed up in the pane. Their ids match the transcript file exactly, and jumping to them worked.\n\nOne fact is still missing: **can a jump reach a row that's in the transcript file but hasn't been drawn yet?** Labelling old history needs this, because its ids come from the file. I added `/spike-file` to test it.\n\nIn a **fresh** terminal:\n```powershell\ncd E:\\CodeExperiments\\awakened-foundry\nclaude --resume 1ebd82e3-1644-496e-b865-2f700ec4a35f --plugin-dir \"C:\\Users\\Sergey Sventitsky\\.claude\\dev-mods\\c73d54bb-3160-457b-bc5e-0add48b6ce76\\marks-spike\"\n```\nThen, **without scrolling up**:\n1. Run `/spike-file C:\\Users\\Sergey Sventitsky\\.claude\\projects\\E--CodeExperiments-awakened-foundry\\1ebd82e3-1644-496e-b865-2f700ec4a35f.jsonl`, then `/spike`. You'll see `F1`–`F19` entries. Those marked `(pre-compact)` come from before the compaction. None of the others should say `drawn` yet.\n2. Press **F17** (\"What the question about?\"). Did the transcript jump there, or did a \"Can't jump\" message appear?\n3. Press **F1**, one marked `(pre-compact)`. I expect it to be refused. Tell me what the message says.\n\nThat's the last test. After it I'll write up the answer and close the ticket.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [],
+   "gist": "Post-scroll prompts jump correctly; added /spike-file to test pre-compact rows.",
+   "secs": 4.4,
+   "tokensIn": 3548,
+   "tokensOut": 388
+  },
+  {
+   "uuid": "bd83da01-8abd-4ebd-b9ff-5650b286e05f",
+   "n": 11,
+   "prompt": "f17 works, f1 doesnt",
+   "tools": [
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks/research/spike-07 && python -c \"",
+    "Bash cd /e/CodeExperiments/claude-marks/.scratch/claude-marks && cat issues/05-data-model.md issues/06-ui",
+    "Bash sed -i 's/^Status: claimed$/Status: resolved/' issues/07-row-identity-jump-spike.md && cat >> issues",
+    "Bash python - <<'EOF'"
+   ],
+   "reply": "I've resolved **Spike: row identity and jump reach**: I wrote up the answer, marked the ticket resolved and added a summary line to the map. Every result came from your real setup, the Claude Code CLI in VS Code's terminal in fullscreen.\n\n**What the spike settled**\n- **Row identity holds.** A prompt's id is the same when it's saved, when it's drawn and in the transcript file. It stays the same after a mod reload, `--continue` and `/resume`.\n- **Jump reach:** from the pane, a jump reaches every row after the last compaction, including rows that haven't been drawn yet, like F17. Rows before a compaction aren't drawn in a resumed conversation, so jumps to them are refused, like F1.\n- **Folding is partial.** Prompt and reply rows can shrink to one line or disappear. Tool groups, \"Worked for…\" footers and notification rows can't be folded. All-grey folded views are hard to read.\n- **Keys:** ctrl+x tab didn't work. A command that opens the pane with keyboard focus did, and its single-key shortcuts worked. A mod can't own a global shortcut, and the status line is plain text only.\n- **Two traps for the real mod:** its storage is shared by every conversation, so data must be kept per conversation. And `/resume` inside a running session switches conversations without clearing the mod's in-memory list.\n- **Not tested:** the main screen. It's left to **Main-screen behaviour: require fullscreen or degrade?**\n\n**Map updates**\n- I added notes to three open tickets:\n  - **Persistence across resume and compaction:** shared storage, `/resume` behaviour, compacted rows not drawn.\n  - **Data model for exchanges, threads, bookmarks and corrections:** anchor each exchange by its prompt's id, and add a \"can't jump there\" state for rows before a compaction.\n  - **UI: band, pane and inline markers:** your status-line idea, dropping ctrl+x, folding contrast, the misaligned `◆`.\n- I sharpened three entries under **Not yet specified**:\n  - **Retro-label command:** ids come from the transcript file, and rows before a compaction can't be jumped to.\n  - **Long conversations:** the mod can read at most 4 MiB of a file, and your longest transcript is 3.4 MB.\n  - **Command surface:** the command is the keyboard entry point.\n\n**What's open next:** **Labeller: separate model call vs main-model self-tagging**, **Persistence across resume and compaction**, and **Main-screen behaviour: require fullscreen or degrade?** The spike mod stays loaded in this session until you end it, and it's safe to delete afterwards. Its logs and your screenshots are in `research/spike-07/`.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "landmark",
+     "why": "Spike result confirmed; ticket marked resolved"
+    }
+   ],
+   "gist": "F17 jumped, F1 refused; spike resolved, ticket closed",
+   "secs": 4.3,
+   "tokensIn": 3682,
+   "tokensOut": 450
+  },
+  {
+   "uuid": "63c62570-4fcf-46f6-865a-87bff05026b4",
+   "n": 12,
+   "prompt": "ok, what's next?",
+   "tools": [],
+   "reply": "This session is done. Wayfinder works one ticket per session, so the next one starts fresh with `/clear`.\n\nThree tickets are open and unblocked:\n\n| Ticket | Type | Unblocks |\n| --- | --- | --- |\n| **Labeller: separate model call vs main-model self-tagging** | research (runs without you) | Labeller prompt and output schema |\n| **Persistence across resume and compaction** | research (runs without you) | Data model for exchanges, threads, bookmarks and corrections |\n| **Main-screen behaviour: require fullscreen or degrade?** | grilling (needs you) | UI: band, pane and inline markers |\n\n**My recommendation:** start the **Main-screen behaviour** ticket next, because you're the one who has to answer it. It should be quick now that you use fullscreen in VS Code, and it unblocks the UI prototype, the ticket closest to what you'll actually see. In parallel, run the two research tickets in separate terminals; they don't need you.\n\n- `/wayfinder .scratch/claude-marks/map.md 08`: the Main-screen grilling\n- `/wayfinder .scratch/claude-marks/map.md 02`: Labeller research\n- `/wayfinder .scratch/claude-marks/map.md 03`: Persistence research\n\nRunning `/wayfinder .scratch/claude-marks/map.md` with no number picks the Labeller research ticket, because it comes first by number.",
+   "thread": "t1",
+   "action": "continue",
+   "bookmarks": [
+    {
+     "kind": "branch_point",
+     "why": "Three open tickets to pick next"
+    }
+   ],
+   "gist": "Lists three open tickets; recommends Main-screen behaviour grilling next.",
+   "secs": 4.5,
+   "tokensIn": 2941,
+   "tokensOut": 384
+  }
+ ]
+}

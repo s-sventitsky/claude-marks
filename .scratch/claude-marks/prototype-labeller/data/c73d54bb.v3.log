@@ -1,0 +1,13 @@
+  1 new_main  t1 'Marks side panel spike'         [] The diamond sits on prompt rows; send a plain prompt to test
+  2 continue  t1 'Marks side panel spike'         [] Plain prompt sent so the diamond marker can be tested
+  3 continue  t1 'Marks side panel spike'         ['branch_point'] Panel-refresh, hotkey and readability issues logged; four qu
+  4 continue  t1 'Marks side panel spike'         ['landmark'] Screenshots confirm folding and jump; spike switched to /spi
+  5 new_sub   t2 'Status line shortcut hint'      [] Status line hint idea proposed; appended to issue 07
+  6 resume    t1 'Marks side panel spike'         [] Keyboard entry settled: /spike opens pane, single-key shortc
+  7 new_sub   t3 'Cross-chat marks leak'          [] Jump list scoped to current chat; alpha id survives resume
+  8 continue  t3 'Cross-chat marks leak'          [] Resumed copy is a snapshot, so later prompts have no jump en
+  9 continue  t3 'Cross-chat marks leak'          [] Resumed session shows zero entries; pre-compaction prompts m
+ 10 continue  t3 'Cross-chat marks leak'          [] Pre-compaction history undrawn; testing whether jumps reach 
+ 11 resume    t1 'Marks side panel spike'         ['landmark'] Spike resolved: jumps reach post-compaction rows only; ticke
+ 12 new_main  t4 'Choosing next wayfinder ticket' ['branch_point'] Three open tickets listed; recommends Main-screen grilling n
+cost reported by CLI: $0.0088

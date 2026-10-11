@@ -1,0 +1,10 @@
+  1 new_main  t1 'Claude Code plugins'            [] Explained plugin types, management commands, and installed p
+  2 continue  t1 'Claude Code plugins'            [] Mods: plugins that change Claude Code's UI and engine behavi
+  3 new_main  t2 'Agent skills docs setup'        [] Drafted CLAUDE.md and three agent docs templates, awaiting a
+  4 continue  t2 'Agent skills docs setup'        ['landmark'] Four agent docs files written; skills now point at them
+  5 new_main  t3 'Bookmarks mod spec'             ['branch_point'] Five design questions to scope bookmarks mod spec
+  6 continue  t3 'Bookmarks mod spec'             ['landmark'] Spec destination fixed; compaction persistence left for rese
+  7 continue  t3 'Bookmarks mod spec'             ['landmark', 'branch_point'] Destination fixed as build-ready spec; breadth pass across e
+  8 continue  t3 'Bookmarks mod spec'             ['landmark'] Auto-bookmarks: branch points and landmarks; retro-mark comm
+  9 continue  t3 'Bookmarks mod spec'             ['landmark'] Map charted with spec destination and three research tickets
+cost reported by CLI: $0.0068

@@ -1,0 +1,1 @@
+{ "name": "marks-proto", "version": "0.1.0", "description": "Throwaway UI prototype for claude-marks: band, pane, inline markers, portal, focus mode", "types": "./types/index.d.ts" }

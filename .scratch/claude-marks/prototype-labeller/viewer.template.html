@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Labeller Prototype</title>
+<style>
+:root{--bg:#fafaf9;--fg:#1c1917;--mut:#78716c;--line:#e7e5e4;--card:#fff;--acc:#2563eb;--sub:#7c3aed;--lm:#15803d;--bp:#b45309}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1917;--fg:#f5f5f4;--mut:#a8a29e;--line:#44403c;--card:#292524;--acc:#60a5fa;--sub:#a78bfa;--lm:#4ade80;--bp:#fbbf24}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+header b{margin-right:8px}.note{color:var(--mut);font-size:12px;flex-basis:100%}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:6px;padding:4px 10px;cursor:pointer}
+button.on{border-color:var(--acc);color:var(--acc);font-weight:600}
+main{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:0;min-height:calc(100vh - 90px)}
+@media (max-width:720px){main{grid-template-columns:1fr}}
+nav{border-right:1px solid var(--line);padding:12px 16px}section{padding:12px 16px;min-width:0}
+.t{padding:3px 6px;border-radius:5px;cursor:pointer}.t:hover,.t.sel{background:var(--line)}
+.t.sub{margin-left:18px;color:var(--sub)}.cnt{color:var(--mut);font-size:12px}
+.ex{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 8px;cursor:pointer}
+.ex.dim{opacity:.35}.row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:22px}.lbl{font-size:12px;color:var(--acc)}.lbl.sub{color:var(--sub)}
+.act{font-size:11px;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.bk{font-size:11px;border-radius:4px;padding:0 5px;color:#fff}.bk.landmark{background:var(--lm)}.bk.branch_point{background:var(--bp)}
+.gist{font-weight:500}.prompt{color:var(--mut);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.full{display:none;margin-top:8px;font-size:12px;white-space:pre-wrap;border-top:1px solid var(--line);padding-top:8px;max-height:400px;overflow:auto}
+.ex.open .full{display:block}.stats{color:var(--mut);font-size:12px;margin:12px 0 0}
+</style></head><body>
+<header><b>Labeller prototype</b><span id="convs"></span><span style="flex:1"></span><span id="vers"></span>
+<div class="note">PROTOTYPE, throwaway. Real transcripts labelled by Haiku via <code>claude -p</code>, one call per exchange, in order. Click a thread to focus it; click an exchange for its prompt, tools and reply.</div></header>
+<main><nav id="tree"></nav><section id="list"></section></main>
+<script>
+const D=/*DATA*/null;
+let conv=Object.keys(D.runs)[0],ver=Object.keys(D.runs[conv]).sort().pop(),focus=null;
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function draw(){
+  const vs=Object.keys(D.runs[conv]).sort(); if(!vs.includes(ver)) ver=vs.at(-1);
+  convs.innerHTML=Object.keys(D.runs).map(c=>`<button class="${c===conv?'on':''}" data-c="${c}">${esc(D.names[c]||c)}</button>`).join(' ');
+  vers.innerHTML=vs.map(v=>`<button class="${v===ver?'on':''}" data-v="${v}">prompt ${v}</button>`).join(' ');
+  const R=D.runs[conv][ver], th=Object.fromEntries(R.threads.map(t=>[t.id,t]));
+  const count=id=>R.exchanges.filter(e=>e.thread===id).length;
+  const mains=R.threads.filter(t=>!t.parent);
+  tree.innerHTML=`<div class="t ${focus?'':'sel'}" data-t="">All threads <span class="cnt">${R.exchanges.length}</span></div>`+
+    mains.map(m=>`<div class="t ${focus===m.id?'sel':''}" data-t="${m.id}">${esc(m.label)} <span class="cnt">${count(m.id)}</span></div>`+
+      R.threads.filter(s=>s.parent===m.id).map(s=>`<div class="t sub ${focus===s.id?'sel':''}" data-t="${s.id}">↳ ${esc(s.label)} <span class="cnt">${count(s.id)}</span></div>`).join('')).join('');
+  const inFocus=e=>!focus||e.thread===focus||th[e.thread].parent===focus;
+  list.innerHTML=R.exchanges.map(e=>{const t=th[e.thread];return `<div class="ex ${inFocus(e)?'':'dim'}">
+    <div class="row"><span class="n">${e.n}</span><span class="lbl ${t.parent?'sub':''}">${t.parent?'↳ ':''}${esc(t.label)}</span><span class="act">${e.action}</span>
+    ${e.bookmarks.map(b=>`<span class="bk ${b.kind}" title="${esc(b.why)}">${b.kind==='landmark'?'◆ landmark':'⑂ branch'}</span>`).join('')}</div>
+    <div class="gist">${esc(e.gist)}</div><div class="prompt">› ${esc(e.prompt)}</div>
+    <div class="full"><b>Prompt</b>\n${esc(e.prompt)}\n\n<b>Tools</b>\n${esc(e.tools.join('\n')||'none')}\n\n<b>Reply</b>\n${esc(e.reply)}\n\n<b>Bookmark reasons</b>\n${esc(e.bookmarks.map(b=>b.kind+': '+b.why).join('\n')||'none')}</div></div>`}).join('')+
+    `<p class="stats">${R.model} · ${R.exchanges.length} calls · $${R.costUsd} reported by the CLI · avg ${(R.exchanges.reduce((a,e)=>a+e.secs,0)/R.exchanges.length).toFixed(1)} s per call (CLI start-up included) · avg ${Math.round(R.exchanges.reduce((a,e)=>a+e.tokensIn,0)/R.exchanges.length)} tokens in</p>`;
+}
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-c],[data-v],[data-t],.ex');if(!b)return;
+  if(b.dataset.c){conv=b.dataset.c;focus=null}else if(b.dataset.v)ver=b.dataset.v;else if(b.dataset.t!==undefined)focus=b.dataset.t||null;else{b.classList.toggle('open');return}draw()});
+draw();
+</script></body></html>

@@ -1,0 +1,359 @@
+[
+ {
+  "uuid": "38a79559-8baa-4ffa-87e1-0ada9ed99095",
+  "n": 1,
+  "prompt": "hey, we've got matt's skills setuped, right?",
+  "tools": [
+   "Glob {docs/agents/*,CONTEXT-MAP.md,.claude/skills/*/SKILL.md}"
+  ],
+  "reply": "Yes, they're set up, in two places:\n\n- **`mattpocock-skills` plugin:** all its skills are loaded, including `tdd`, `diagnosing-bugs`, `code-review`, `grilling`, `domain-modeling`, `codebase-design`, `prototype`, `research`, `wizard` and `writing-for-agents`.\n- **Project skills in `.claude/skills/`:** there are 19 of them, including `triage`, `to-issues`, `to-prd`, `handoff`, `grill-with-docs`, `improve-codebase-architecture` and `setup-matt-pocock-skills`. Some of these aren't in the list of skills I can call on my own, so they're probably set to run only when you type `/name`.\n\nThe repo config they rely on is also there. `CLAUDE.md` points to GitHub Issues, and `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`, `docs/agents/domain.md` and `CONTEXT-MAP.md` all exist.\n\nSome skills (`tdd`, `diagnosing-bugs`, `grilling`, etc.) exist both as a project copy and in the plugin. That works fine. If you want to tidy it up, you could delete the project copies and keep the plugin versions so there's only one to keep updated."
+ },
+ {
+  "uuid": "932a2378-83b5-4863-8f5d-06ee36d3a718",
+  "n": 2,
+  "prompt": "so I want to move tracking into linear",
+  "tools": [
+   "Read E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\issue-tracker.md",
+   "Read E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\triage-labels.md",
+   "Grep (?i)linear|github|gh issue",
+   "AskUserQuestion",
+   "Glob .mcp.json",
+   "Read E:\\CodeExperiments\\awakened-foundry\\CLAUDE.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\.mcp.json",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\issue-tracker.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\CLAUDE.md"
+  ],
+  "reply": "I've pointed the skills at Linear, but two things are needed before they can use it: you have to connect the Linear server, and I need your Linear team key.\n\n**What I changed:**\n- **`.mcp.json`** (new): adds Linear's official server (`https://mcp.linear.app/mcp`) for this project.\n- **`docs/agents/issue-tracker.md`**: rewritten for Linear. Skills now create, read, list, comment on, label and close Linear issues instead of using `gh issue`. GitHub PRs are still used for code review but aren't triaged. To link a PR to its issue, put the Linear ID (e.g. `ABC-42`) in the branch name or PR title.\n- **`CLAUDE.md`**: the tracker section now says Linear.\n- **`docs/agents/triage-labels.md`**: unchanged, since the five labels keep their names.\n\n**What you need to do:**\n1. **Connect Linear.** Restart Claude Code, approve the `linear` server, then run `/mcp` and log in to Linear.\n2. **Give me your team key.** The docs still say `<TEAM>` as a placeholder. Once Linear is connected I can look the key up and fill it in. You'll also need to create the five triage labels in that team if they don't exist yet; I can do that once connected too.\n\nThe project's `triage` skill (`.claude/skills/triage/AGENT-BRIEF.md`) still mentions GitHub and has a `gh issue list` example. It's only an illustration and the tracker doc takes priority, but I can update it if you'd like.\n\nNone of this is committed yet. Your existing GitHub issues are left where they are, as you chose."
+ },
+ {
+  "uuid": "4aac3e4b-fa0d-41ee-9477-b2b96d83d78f",
+  "n": 3,
+  "prompt": "/mcp",
+  "tools": [],
+  "reply": ""
+ },
+ {
+  "uuid": "5304d613-893d-4191-a9ac-28f3547a3d9c",
+  "n": 4,
+  "prompt": "I've logged in to linear. Next create a new project and track our work inside of it",
+  "tools": [
+   "ToolSearch select:mcp__linear__list_teams,mcp__linear__list_projects,mcp__linear__save_project,mcp__linear__lis",
+   "mcp__linear__list_teams",
+   "mcp__linear__list_projects awakened",
+   "ToolSearch select:mcp__linear__get_team",
+   "mcp__linear__list_issue_labels",
+   "mcp__linear__get_team 70b9eb73-1be5-4b67-85fb-822175031def",
+   "mcp__linear__save_project Tracks all work for the `s-sventitsky/awakened-foundry` repo. Issues are created and triaged by agen",
+   "mcp__linear__save_issue_label Maintainer needs to evaluate this issue",
+   "mcp__linear__save_issue_label Waiting on reporter for more information",
+   "mcp__linear__save_issue_label Fully specified, ready for an AFK agent",
+   "mcp__linear__save_issue_label Requires human implementation",
+   "mcp__linear__save_issue_label Will not be actioned",
+   "mcp__linear__list_issue_labels",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\issue-tracker.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\CLAUDE.md"
+  ],
+  "reply": "I created the **awakened-foundry** project in Linear, and the skills now file and read issues there: https://linear.app/ssventitsky/project/awakened-foundry-5cb97396e1f8\n\n- **Project:** it belongs to your only team, Ssventitsky. Issues will be numbered like `SSV-42`. You're the lead, and the project links back to the GitHub repo.\n- **Triage labels:** four of the five (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`) already existed on the team. I only had to create `wontfix`, so the label names in `docs/agents/triage-labels.md` still match and that file didn't need changing.\n- **Docs:** `docs/agents/issue-tracker.md` and `CLAUDE.md` now name the team, the `SSV` key and the project instead of the `<TEAM>` placeholder. New issues must be put in this project, or the other skills won't find them.\n\nNone of this is committed yet. The changes are `.mcp.json`, `CLAUDE.md` and `docs/agents/issue-tracker.md`. Want me to commit them?"
+ },
+ {
+  "uuid": "c43695a5-e2cf-496a-a854-e5c0c1c4edc9",
+  "n": 5,
+  "prompt": "we not yet finished, now I want to move our docs into OKF. Give me a breakdown what it will take and what is mean for us",
+  "tools": [
+   "Grep (?i)\\bokf\\b|open knowledge",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git ls-files | grep -iE '\\.(md|mdx|txt)$' | head -100 &&"
+  ],
+  "reply": "\"OKF\" doesn't appear anywhere in the repo, and I'm not sure which tool or format you mean. I don't want to plan a migration around a guess. Can you tell me what it is, ideally with a link?\n\nTo scope it, I also need to know which of these you mean:\n- **Hosted:** docs move out of git into an external tool, like you just did with Linear.\n- **In-repo:** docs stay in the repo but get restructured to a new layout or standard.\n\nHere's what we'd be moving, so the breakdown can be quick once I know:\n\n**Project docs** (`docs/`, plus `CONTEXT-MAP.md`, `README.md`, `AGENTS.md`):\n- `docs/core-spec.md` (partly out of date), `docs/design-notes.md`, `docs/extended-roadmap.md` and `docs/architecture-review-2026-06-10.md` (the main architecture reference).\n- `docs/legacy/`: finished phase checklists, kept for history.\n- `CONTEXT-MAP.md` lists docs that don't exist: `phase-5-checklist.md` and `unicorn-perks-plan.md` aren't in `docs/`. That's worth fixing either way.\n\n**Domain docs that skills read directly:**\n- `src-tauri/CONTEXT.md` and `src/CONTEXT.md`, the glossaries `CONTEXT-MAP.md` points to.\n- `src/features/search/TOKEN_SEARCH_PLAN.md` and its checklist, which is the only plan still in progress.\n- No ADRs exist yet, though `docs/agents/domain.md` expects them in `docs/adr/`.\n\n**Agent config:**\n- `docs/agents/*.md` (tracker, labels, domain layout).\n- Skills are duplicated across `.claude/skills/`, `.agents/skills/` and `.cursor/skills/`. These aren't docs, so I'd leave them alone.\n\n**What it means for us:** the key constraint is the domain docs. Several skills (`domain-modeling`, `grill-with-docs`, `improve-codebase-architecture`, `diagnosing-bugs`, `tdd`) read `CONTEXT.md` and ADR files from disk and write to them.\n- If OKF keeps docs as files in the repo, those skills keep working with a path update in `docs/agents/domain.md`.\n- If it moves docs out of git, those skills need a connector the way Linear did. Otherwise the glossaries should stay in the repo and only the planning and roadmap docs move.\n\nTell me what OKF is and I'll give you a concrete breakdown of the steps, the effort, and what changes for the skills."
+ },
+ {
+  "uuid": "71fece68-62cf-45a4-af88-cc630f0efb77",
+  "n": 6,
+  "prompt": "I'm talking about Open Knowledge Format",
+  "tools": [
+   "ToolSearch select:WebSearch,WebFetch",
+   "WebSearch \"Open Knowledge Format\" OKF specification",
+   "WebSearch Open Knowledge Format v0.2 spec github reserved files index.md frontmatter type",
+   "WebFetch https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && for f in README.md AGENTS.md CONTEXT-MAP.md src/CONTEXT."
+  ],
+  "reply": "I checked the OKF v0.2 spec and our docs. First, a correction: I said earlier that `docs/phase-5-checklist.md` and `docs/unicorn-perks-plan.md` don't exist. They do. My file listing was cut off, so the `CONTEXT-MAP.md` links are fine.\n\n## What OKF is\nOKF is a set of rules for ordinary Markdown in git, not a tool or service. There's nothing to host or connect.\n- **Required:** every `.md` file needs YAML frontmatter with a `type` field, e.g. `type: Plan`.\n- **Optional:** fields like `title`, `description`, `tags`, `status` (`draft | stable | deprecated`), `verified`, `stale_after` and `sources`.\n- **Two reserved files:**\n  - `index.md`: a bullet list of a folder's contents. Only the top-level one may declare `okf_version: \"0.2\"`.\n  - `log.md`: dated change history, newest first.\n- **Links:** ordinary Markdown links, preferably starting with `/` (measured from the docs root).\n- **Leniency:** tools that read OKF must accept unknown types and broken links.\n\n## What it would take\n\n| # | Step | Effort |\n|---|---|---|\n| 1 | **Decide which folder holds the docs.** I'd use `docs/`. Using the repo root would pull in every skill file and the 1,095-line `README.md`. | decision |\n| 2 | **Add frontmatter** to about 17 docs: `docs/*`, `docs/legacy/*`, `docs/agents/*`, both `CONTEXT.md` glossaries, the two token-search docs, and `CONTEXT-MAP.md`. Pick a small set of types: `Glossary`, `Architecture Review`, `Spec`, `Roadmap`, `Plan`, `Checklist`, `Design Notes`, `Agent Config`, `ADR`. | small |\n| 3 | **Turn existing status notes into fields.** The \"Archived (2026-06-30)\" notes on the legacy checklists become `status: deprecated`, the \"partially superseded\" note on `core-spec.md` becomes `status` plus `stale_after`, and the \"checked against the code on 2026-06-30\" note becomes `verified`. | small |\n| 4 | **Add `index.md` files** in `docs/`, `docs/legacy/` and `docs/agents/`. `CONTEXT-MAP.md`'s list of planning docs becomes the top-level `docs/index.md`. `docs/legacy/README.md` becomes `docs/legacy/index.md` plus a `log.md`. | small |\n| 5 | **Decide where the glossaries live.** They currently sit in `src/` and `src-tauri/`, outside `docs/`. Either move them into the docs folder (e.g. `docs/contexts/`) and update `docs/agents/domain.md`, or leave them in place and link out to them. | decision |\n| 6 | **Teach the skills that create docs.** `domain-modeling` writes `CONTEXT.md` and ADR files from its templates (`CONTEXT-FORMAT.md`, `ADR-FORMAT.md`), which don't include OKF frontmatter. Those templates exist in both `.claude/skills/` and `.agents/skills/`, and editing them means they drift from Matt's originals. | small, ongoing |\n| 7 | **Add a checker:** a small script, run before each commit or in CI, that confirms every doc has a `type`. Without one, the format will quietly stop being followed. | small |\n\nAll told it's roughly half a day, nearly all of it frontmatter and index files. Nothing in the app code changes.\n\n## What it means for us\n- **Upside:** our docs already look a lot like this: one file per concept, dated status notes, a map of contexts. OKF makes the status machine-readable, so any agent (Claude, Cursor, or another tool) can tell what's current and what's stale without reading the prose notes. It stays in git, adds no infrastructure, and doesn't tie us to a vendor.\n- **Cost:** every new doc needs frontmatter, and index files have to be kept current. That's the reason for the checker and the template edits.\n- **Overlap with Linear:** OKF is for knowledge and Linear is now for work. `phase-5-checklist.md` and `TOKEN_SEARCH_CHECKLIST.md` are really task lists. I'd move their open items into Linear issues and keep only the plans and specs as docs.\n- **Maturity:** the spec is at v0.2 and recently had breaking changes (v0.1's `timestamp` field became `generated`), so expect some further churn.\n\nTwo things to fix along the way: `AGENTS.md` probably still points at GitHub Issues, since we only updated `CLAUDE.md`, and the Linear changes from earlier are still uncommitted.\n\nShould I go ahead with `docs/` as the docs folder and the glossaries moved into it, or would you rather settle steps 1 and 5 differently first?\n\nSources:\n- [OKF SPEC.md — GoogleCloudPlatform/knowledge-catalog](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)\n- [OKF Spec — okf.md](https://okf.md/spec/)\n- [What is OKF? — GitBook](https://www.gitbook.com/blog/what-is-okf-open-knowledge-format)\n- [Open Knowledge Format: I Already Do This — alexop.dev](https://alexop.dev/posts/open-knowledge-format-markdown-frontmatter-agent-knowledge/)\n- [awesome-okf](https://github.com/linyiru/awesome-okf)"
+ },
+ {
+  "uuid": "3fa816a3-ba07-413f-846b-8c6e52cb34cc",
+  "n": 7,
+  "prompt": "ok, let's create our first linear issue about migration to the oKF",
+  "tools": [
+   "ToolSearch select:mcp__linear__save_issue",
+   "mcp__linear__save_issue ## Goal"
+  ],
+  "reply": "I created **SSV-18 \"Migrate repo docs to Open Knowledge Format (OKF v0.2)\"** in the awakened-foundry project: https://linear.app/ssventitsky/issue/SSV-18/migrate-repo-docs-to-open-knowledge-format-okf-v02\n\n- **Labels:** `needs-triage` (our default for new issues) and `Improvement`. It's in Backlog with no priority.\n- **Description:**\n  - **Goal:** what OKF is and why we'd adopt it.\n  - **Open decisions:** where the docs root goes (proposed `docs/`), where the glossaries go, and the list of doc types.\n  - **Scope:** a 6-item checklist of the work.\n  - **Out of scope:** moving the checklist docs' open items into Linear, as a separate task.\n  - **Acceptance criteria:** the checker passes, agents still find the glossaries, and no app code changes.\n- **Branch:** Linear suggests `sergeysventitsky/ssv-18-migrate-repo-docs-to-open-knowledge-format-okf-v02`. Using it links the PR to the issue.\n\nThe number SSV-18 means your team already has 17 older issues outside this project. They're invisible to the skills, which only look inside the project. If any belong to this repo, I can move them in.\n\nThe three open decisions need an answer before this can be labeled `ready-for-agent`. You can settle them here now, or run `/triage` on SSV-18."
+ },
+ {
+  "uuid": "3374ccf1-9f08-4d3d-b455-587c0a05cece",
+  "n": 8,
+  "prompt": "also could we use other ticket prefix for issues for this project?",
+  "tools": [],
+  "reply": "Not as a project setting. Linear builds issue IDs from the **team** key (`SSV`), and projects don't have their own prefix. There are two ways to get one:\n\n| Option | What happens | Who does it |\n|---|---|---|\n| **A. New team for this repo** (recommended) | Create a team such as \"Awakened Foundry\" with a key like `AF` or `FDRY`. Move the project and SSV-18 into it. SSV-18 gets a new number and its old ID keeps working as a redirect. Your other 17 SSV issues are unaffected. | You create the team in Linear: Settings → Teams → Create team. The Linear connector can't create teams. I can do the rest. |\n| **B. Rename the `SSV` key** | Every issue on the team, including the 17 older ones, gets the new prefix. Old IDs still redirect. Only worth it if the whole team is really just this repo. | You, in team settings. |\n\nWith option A, the new team starts with its own workflow states and no labels, so I'd recreate the five triage labels on it. I'd also update `docs/agents/issue-tracker.md` and `CLAUDE.md` with the new team name and key, and replace the `SSV-42` examples.\n\nWhich option do you want, and what key? Once the team exists, tell me and I'll move everything over."
+ },
+ {
+  "uuid": "df7edce0-6b15-4fc1-8cb0-0f00e1aab427",
+  "n": 9,
+  "prompt": "I'm on free plan, will affect it?",
+  "tools": [
+   "WebFetch https://linear.app/pricing",
+   "WebSearch Linear free plan 250 issue limit archived issues count"
+  ],
+  "reply": "Yes, a bit, but both options still work. The Free plan allows **2 teams** and **250 active issues** (archived issues don't count).\n\n- **Option A (new team):** this uses your **second and last** team slot, since you already have Ssventitsky. A third repo would then need either Option B or a paid plan. The issue limit is shared across the whole workspace, so a new team doesn't give you more issues.\n- **Option B (rename `SSV`):** costs nothing, but every issue on the team gets the new prefix.\n\n**Issue limit:** you have about 18 issues, so 250 is a long way off. Once you hit it you can't create new issues, which would break the issue-filing skills (`to-issues`, `qa`, `triage`). Linear auto-archives closed issues after a while, so this mainly matters if the backlog keeps growing.\n\n**My recommendation:** if this repo is your main project in Linear, use Option A with a short key like `AF`. If you expect to track several repos, rename `SSV` instead (or keep it) and tell repos apart by project, saving the second team slot. What do you want to do?\n\nSources:\n- [Linear Pricing](https://linear.app/pricing)\n- [Linear Docs — Billing and plans](https://linear.app/docs/billing-and-plans)"
+ },
+ {
+  "uuid": "60c430cc-c23b-40c4-9cb0-698ec5560be1",
+  "n": 10,
+  "prompt": "I see, I want to track 2 projects, so we go with no changes for now",
+  "tools": [
+   "Write C:\\Users\\Sergey Sventitsky\\.claude\\projects\\E--CodeExperiments-awakened-foundry\\memory\\linear-team-s",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && test -f \"C:/Users/Sergey Sventitsky/.claude/projects/E--",
+   "Write C:\\Users\\Sergey Sventitsky\\.claude\\projects\\E--CodeExperiments-awakened-foundry\\memory\\MEMORY.md",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && cp CLAUDE.md AGENTS.md && git diff --stat && git status "
+  ],
+  "reply": "OK, nothing changes in Linear. New issues stay `SSV-NN` and this repo is kept separate from your other one by its Linear project. I've saved that decision to memory so I won't suggest a new team or prefix again.\n\nI also updated `AGENTS.md` to match `CLAUDE.md`. It still said GitHub Issues, so Cursor and other agents would have kept filing issues on GitHub.\n\nNone of this is committed yet:\n- `.mcp.json` (new): connects the project to Linear\n- `CLAUDE.md` and `AGENTS.md`: tracker section points at Linear\n- `docs/agents/issue-tracker.md`: rewritten for Linear\n- `.claude/settings.local.json`: your local permission settings, already modified before this session\n- `.claude/worktrees/xenodochial-galileo-4f3752`: an old worktree that shows as changed\n\nWant me to commit the first four as one \"switch issue tracking to Linear\" commit and leave the last two alone?"
+ },
+ {
+  "uuid": "05ceb3dd-7744-49e4-9f13-4015153a1210",
+  "n": 11,
+  "prompt": "commit all, except worktree",
+  "tools": [
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git switch -c chore/linear-issue-tracker && git add .mcp"
+  ],
+  "reply": "Committed as `ca3153a` (\"chore: switch issue tracking to Linear\") on a new branch, `chore/linear-issue-tracker`, rather than on `main`. It includes `.mcp.json`, `CLAUDE.md`, `AGENTS.md`, `docs/agents/issue-tracker.md` and `.claude/settings.local.json`. The worktree was left out and is still the only uncommitted change.\n\nNothing is pushed. I can push the branch and open a PR, or merge it into `main` locally if you'd rather keep committing straight to `main` like before."
+ },
+ {
+  "uuid": "70688d53-2e86-4b22-b8df-c5f36f176d6c",
+  "n": 12,
+  "prompt": "let's commit straight, since it's note big task and nothing runs in parallel",
+  "tools": [
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git switch -q main && git merge --ff-only -q chore/linea",
+   "Write C:\\Users\\Sergey Sventitsky\\.claude\\projects\\E--CodeExperiments-awakened-foundry\\memory\\commit-to-mai",
+   "Edit C:\\Users\\Sergey Sventitsky\\.claude\\projects\\E--CodeExperiments-awakened-foundry\\memory\\MEMORY.md"
+  ],
+  "reply": "The Linear commit (`ca3153a`) is now on `main` and the temporary branch is deleted. `main` is 1 commit ahead of `origin/main`, nothing is pushed, and the worktree is still the only uncommitted change.\n\nI've saved to memory that small tasks go straight to `main`, so I won't create a branch for them next time."
+ },
+ {
+  "uuid": "1bd12d78-48b3-493d-b8a8-e8318bf2f598",
+  "n": 13,
+  "prompt": "ok let's take a look at said linear ticket",
+  "tools": [
+   "ToolSearch select:mcp__linear__get_issue,mcp__linear__list_comments",
+   "mcp__linear__get_issue",
+   "mcp__linear__list_comments",
+   "AskUserQuestion",
+   "ToolSearch select:mcp__linear__save_comment,mcp__linear__list_issue_statuses",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && for f in CONTEXT-MAP.md src/CONTEXT.md src-tauri/CONTEXT",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && for f in docs/core-spec.md docs/extended-roadmap.md docs",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && cat package.json; ls -a; ls .github/workflows .husky 2>&",
+   "Read E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\SKILL.md",
+   "Read E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\CONTEXT-FORMAT.md",
+   "Read E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\ADR-FORMAT.md",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && ls scripts; cat vitest.config.ts; cat .prettierignore; g",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && mkdir -p docs/contexts && git mv src-tauri/CONTEXT.md do",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && prepend() { f=\"$1\"; shift; { printf -- '---\\n'; printf '",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && sed -i 's#(\\.\\./src-tauri/CONTEXT\\.md)#(./contexts/desti",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\index.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\log.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\contexts\\index.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\index.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\legacy\\index.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\legacy\\log.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\CONTEXT-MAP.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\domain.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\CONTEXT-FORMAT.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\CONTEXT-FORMAT.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\ADR-FORMAT.md",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\.claude\\skills\\domain-modeling\\ADR-FORMAT.md",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && cp .claude/skills/domain-modeling/CONTEXT-FORMAT.md .cla",
+   "Write E:\\CodeExperiments\\awakened-foundry\\scripts\\check-okf.mjs",
+   "Write E:\\CodeExperiments\\awakened-foundry\\scripts\\check-okf.test.mjs",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\scripts\\check-okf.mjs",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\vitest.config.ts",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\package.json",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && pnpm -s docs:check; echo \"exit=$?\"",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && for p in src-tauri/src/manifest/search_db/models.rs src-",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && sed -i -E 's#\\]\\((src(-tauri)?/)#](../\\1#g' docs/unicorn",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && T=\"C:/Users/SERGEY~1/AppData/Local/Temp/claude/E--CodeEx",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git grep -n -E 'src(-tauri)?/CONTEXT\\.md|legacy/README' ",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git commit -q -F - <<'EOF'",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue"
+  ],
+  "reply": "The migration is done and SSV-18 is closed. `docs/` now passes the OKF v0.2 checker (`pnpm docs:check`), the test suite passes 82/82 with the checker included, and the work is committed to `main` as `7d04568` (not pushed).\n\n**In Linear:** I recorded your three decisions on the ticket, moved it through In Progress to Done, and added a comment summarizing what changed.\n\n**In the repo:**\n- **Frontmatter:** every doc in `docs/` now has a `type`, `title` and `description`, and so do the two token-search docs and `CONTEXT-MAP.md`. The archived phase checklists are marked `status: deprecated`, and `core-spec.md` is marked stale since 2026-06-30.\n- **Glossaries:** moved to `docs/contexts/destiny-data.md` and `docs/contexts/overlay-ux.md`. `CONTEXT-MAP.md` stays at the repo root (that's where the skills look for it) and links to the new locations.\n- **Index and log files:** each folder in `docs/` has an `index.md`, and the top-level one now holds the planning-docs list that used to be in `CONTEXT-MAP.md`. `docs/legacy/README.md` became `legacy/index.md` plus `legacy/log.md`, and `docs/log.md` records this migration.\n- **Skill templates:** the `domain-modeling` templates now produce OKF frontmatter for new glossaries and ADRs. `docs/agents/domain.md` explains the new layout and the rules for adding docs.\n- **Checker:** `scripts/check-okf.mjs` checks frontmatter, our list of doc types, the index and log formats, and relative links. It runs with `pnpm docs:check` and as part of `pnpm test`. I added `yaml` as a dev dependency for it. I also ran it against a deliberately broken set of docs and it flagged every problem.\n\n**Where I departed from the ticket:**\n- **Relative links:** I used them instead of the spec's preferred `/`-style links, because `/` links break when you view the docs on GitHub.\n- **`verified` left out:** I don't know who did the 2026-06-30 review pass, and filling it in would claim a human checked it. If it was you, I can add it.\n- **Six pre-existing broken links:** the checker found them in `unicorn-perks-plan.md` and I fixed them.\n- **Template edits may get overwritten:** the `domain-modeling` skills are copies of Matt's originals. If you update them from upstream, these edits will be lost.\n\nThe remaining follow-up from the ticket is moving the open items in `phase-5-checklist.md` and `TOKEN_SEARCH_CHECKLIST.md` into Linear issues. Should I file those, or push the two commits first?"
+ },
+ {
+  "uuid": "c0d71738-ff4d-4497-9bbd-a9e78caba6db",
+  "n": 14,
+  "prompt": "set autocompact to 30%",
+  "tools": [
+   "Skill update-config",
+   "Bash cat \"$HOME/.claude/settings.json\" 2>&1",
+   "Edit C:\\Users\\Sergey Sventitsky\\.claude\\settings.json",
+   "Bash node -e \"const s=JSON.parse(require('fs').readFileSync(process.env.HOME+'/.claude/settings.json','ut",
+   "Read C:\\Users\\Sergey Sventitsky\\.claude\\settings.json",
+   "Edit C:\\Users\\Sergey Sventitsky\\.claude\\settings.json",
+   "Bash node -e \"const s=JSON.parse(require('fs').readFileSync(process.env.HOME+'/.claude/settings.json','ut"
+  ],
+  "reply": "Auto-compact is now set to 30% in your global settings (`~/.claude/settings.json`), so it applies to every project. I set it with `\"env\": { \"CLAUDE_AUTOCOMPACT_PCT_OVERRIDE\": \"30\" }` and kept your other settings unchanged. The file still reads as valid JSON.\n\n**Restart Claude Code for it to take effect.** Environment variables are only read at startup, so this session will keep using the default.\n\nI couldn't confirm this exact variable in the settings reference I had. My understanding is that it makes compaction start once the conversation uses 30% of the context window, which is much earlier than the default. That means more frequent summaries and less of the older conversation kept word for word. After restarting, run `/context` during a long session to check it's taking effect.\n\nIf you meant something else:\n- **Fixed token size:** the `autoCompactWindow` setting (or the `/autocompact` command) caps it at a number of tokens instead of a percentage.\n- **This repo only:** I can move the setting into `.claude/settings.local.json`."
+ },
+ {
+  "uuid": "0550fb8a-57b6-4070-bf64-945171f52526",
+  "n": 15,
+  "prompt": "ok, let's take a look at other docs that outside of the docs folder and check if could improve them",
+  "tools": [
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && git ls-files '*.md' '*.mdc' '*.txt' | grep -v -E '^(docs",
+   "Agent Audit README against code",
+   "Agent Audit token-search plan docs",
+   "Agent Audit agent config docs",
+   "Bash cd \"E:/CodeExperiments/awakened-foundry\" && sed -n 1,20p src-tauri/src/config.rs; git log --oneline "
+  ],
+  "reply": "All three reviews are back. I spot-checked several of their claims and they hold. For example, the default hotkey is `F9` (`src-tauri/src/config.rs:4`), not the README's `Ctrl+Shift+D`. Also, `fuse.js` and `@radix-ui/react-dialog` are dependencies but nothing in `src/` imports either one. Here's what I'd improve, most valuable first.\n\n## 1. `README.md`: rewrite (1,095 lines down to about 100)\n- **It's mostly duplicates.** Lines 1–74 and 75–148 are identical copies of the overview. Lines 149–404 are a third, different version. Lines 405–1095 are an older, longer form of what's now in `docs/core-spec.md`, `extended-roadmap.md` and `design-notes.md`.\n- **Much of it is wrong:**\n  - It says \"not scaffolded yet\", but phases 1–4 are done.\n  - It gives `npm` commands; the project uses `pnpm`.\n  - It lists React 18 and plain rusqlite; the code uses React 19 and Diesel.\n  - It says the default hotkey is `Ctrl+Shift+D`; it's `F9`.\n  - It claims the API key is bundled with the app; the key comes only from environment variables.\n  - It lists the wrong dependencies and a folder layout that doesn't exist.\n  - It leaves out two environment variables, `OVERLAY_HOTKEY` and `REQUIRE_DESTINY_FOCUS`.\n- **Some detail exists nowhere else and needs saving first:** interface sketches for future features, data sources (d2foundry, Clarity), the format of DIM wishlists, search by stat thresholds and source, and the note that BattlEye bans for memory access. I'd move these into the matching docs before cutting the README.\n- **New README outline:** status, features, setup, a table of environment variables (plus a committed `.env.example`, which `.gitignore` already expects), `pnpm`/`cargo` commands, a short folder layout, troubleshooting, and a pointer to `docs/index.md`.\n\n## 2. `CLAUDE.md` / `AGENTS.md`: one shared source, with the basics added\n- **Make `AGENTS.md` the main file** (Cursor reads it too) and have `CLAUDE.md` just import it with `@AGENTS.md`. That removes the two identical copies.\n- **Add what an agent needs on arrival:** the stack, the folder layout, the `pnpm`/`cargo` commands, `pnpm docs:check`, and the key rules. For example: a database schema change needs a migration, a `schema.rs` update and an `INDEX_SCHEMA_VERSION` bump. Prefer enums to strings, and use the `af-type-*` CSS classes.\n\n## 3. `.cursor/` rules and skills: fix them and share them with Claude Code\n- **The Radix/shadcn rule is wrong.** There's no shadcn here, and the tooltip is hand-built. The rule also tells agents to install that stack if it's missing. I'd delete it, or decide to actually adopt Radix.\n- **Stale details:** `tauri-base` uses `npm` commands and names the wrong entry file, and `rust-base` points to `src/lib.rs` instead of `src-tauri/src/lib.rs`. The `INDEX_SCHEMA_VERSION` rule is copied in three places, and the test commands differ between them.\n- **The SQL rule omits the read-only Bungie database.** It uses raw SQL on purpose, and an agent could wrongly \"fix\" it.\n- **Claude Code can't see any of this.** I'd keep each convention in one shared place (`docs/agents/conventions/*.md`), make the Cursor rules short pointers to it, and move the three procedural skills into the shared skills folder.\n\n## 4. Token-search docs: keep the design, retire the checklist\n- **Phases 1–6 are built.** For Phase 7, the old `SearchCommandPanel.tsx` was already deleted in `3f87928`, but both docs still list it as remaining work.\n- **Eight dead files remain (595 lines).** Nothing in live code imports them. One file in `panel/views/` is still in use (`ResultsSection.tsx`) and needs moving first.\n- **Shrink the plan to the lasting design** (principles, mental model, data flow, keyboard reference) and correct the 7 places where the code differs from it. Archive the checklist.\n- **Turn the open items into Linear issues.** There are 8 draft issues, including: delete the legacy files, make the footer hints context-aware, save recent searches, add keyboard shortcuts, and a manual smoke test.\n\n## 5. Quick cleanups\n- **Stray file:** `Untitled` at the repo root contains only `npx skills@latest add mattpocock/skills`. Delete it.\n- **Unused dependencies:** `fuse.js` and `@radix-ui/react-dialog` (the latter depends on the decision in #3).\n\nItems 1–4 are each about one commit. How would you like to proceed?\n- **(a)** Do all four now, committing each to `main`.\n- **(b)** File them as Linear issues first (four doc tasks plus the 8 token-search issues) and work through them afterwards.\n- **(c)** Pick specific items.\n\nI'd suggest **(b)**. It's a sizeable amount of work, and #3 needs your decision on Radix/shadcn."
+ },
+ {
+  "uuid": "94fc5071-b8f2-4640-8c13-c222606cc01c",
+  "n": 16,
+  "prompt": "sound good continue",
+  "tools": [
+   "mcp__linear__save_issue ## Problem",
+   "mcp__linear__save_issue ## Problem",
+   "mcp__linear__save_issue ## Problem",
+   "mcp__linear__save_issue ## Problem",
+   "mcp__linear__save_issue ## Scope",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue ## Context",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_issue"
+  ],
+  "reply": "I filed all 13 issues, SSV-19 through SSV-31, in the awakened-foundry project. They're all in Backlog. One failed on a temporary Linear error and went through on retry (SSV-31). I linked the issues that depend on each other: SSV-20 and SSV-21, SSV-26 and SSV-30, SSV-27 and SSV-28, and all the token-search ones to SSV-22.\n\n**Documentation and cleanup:**\n\n| Issue | Title | Status |\n|---|---|---|\n| SSV-19 | Rewrite `README.md`: remove duplicates, fix stale claims, save the unique detail into `docs/` | ready-for-agent |\n| SSV-20 | `AGENTS.md` becomes the shared entry point; `CLAUDE.md` imports it | ready-for-agent |\n| SSV-21 | Fix the `.cursor/` rules and skills, share the conventions with Claude Code | **needs-info** (your decision on Radix/shadcn) |\n| SSV-22 | Shrink the token-search plan to its lasting design; archive the checklist | ready-for-agent |\n| SSV-23 | Remove the stray `Untitled` file and the unused `fuse.js` dependency | ready-for-agent |\n\n**Token search:**\n\n| Issue | Title | Status |\n|---|---|---|\n| SSV-24 | Delete the legacy palette code (8 files, 595 lines; move `ResultsSection.tsx` first) | ready-for-agent |\n| SSV-25 | Footer hints that change with the search state | ready-for-agent |\n| SSV-26 | Save and restore recent searches | needs-triage |\n| SSV-27 | Keyboard shortcuts: `:` opens values, Tab completes, Space commits | ready-for-agent |\n| SSV-28 | Filter values that contain spaces | needs-triage |\n| SSV-29 | Tests for the search's debounce and cancellation | ready-for-agent |\n| SSV-30 | Filter perks by name instead of hash (low priority, after v1) | needs-triage |\n| SSV-31 | Manual smoke test in `tauri dev` | **ready-for-human** (yours) |\n\nIncluding SSV-18, the project now has 14 issues.\n\n**Suggested order:** SSV-23 and SSV-24 first (quick, low-risk cleanup), then SSV-19, SSV-20 and SSV-22 (docs). SSV-21 has to wait for one answer from you: should I delete the Radix/shadcn rule and remove the unused `@radix-ui/react-dialog` dependency, or do you want to adopt Radix for real?\n\nShould I start on SSV-23 and SSV-24, committing each to `main` and closing it in Linear as I go?"
+ },
+ {
+  "uuid": "3cd9ec3e-f36a-4009-adbb-dbbef2c58dc7",
+  "n": 17,
+  "prompt": "ok let's start with docs and cleanups",
+  "tools": [
+   "Agent SSV-19 README rewrite",
+   "Agent SSV-22 token-search docs",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_issue",
+   "Bash git rm -q Untitled && pnpm remove fuse.js 2>&1 | tail -5 && grep -rn \"fuse\" src --include=*.ts --inc",
+   "Bash pnpm build 2>&1 | tail -6 && pnpm test:run 2>&1 | tail -6",
+   "Bash pnpm test:run 2>&1 | grep -E \"FAIL|broken|✗|×\" | head",
+   "Bash git commit -q -m \"chore: remove stray Untitled file and unused fuse.js (SSV-23)",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_issue",
+   "Bash cd /e/CodeExperiments/awakened-foundry/src/features/search && ls -R | head -60 && for f in useSearch",
+   "Bash cd /e/CodeExperiments/awakened-foundry/src && grep -n \"useSearchPalette\" features/search/store/useSe",
+   "Bash cd /e/CodeExperiments/awakened-foundry && sed -n 40,60p src/features/search/panel/filters.config.ts;",
+   "Bash cd /e/CodeExperiments/awakened-foundry/src/features/search && git rm -q useSearchPalette.ts hooks/us",
+   "Bash wc -l panel/types.ts && sed -n 24,45p panel/types.ts && sed -n 10,20p store/useSearchEffect.ts",
+   "Bash sed -i '26,39d' panel/types.ts && tail -3 panel/types.ts && sed -i '15,16c\\ * Mounted once in `Searc",
+   "Bash grep -rn \"panel/views\\|useAllPerks\\|useSearchPalette\" docs/token-search-design.md docs/*.md CONTEXT-",
+   "Bash cd /e/CodeExperiments/awakened-foundry/src/features/search && git commit -q -m \"refactor(search): de",
+   "Bash cd /e/CodeExperiments/awakened-foundry && sed -n 1,15p docs/log.md; grep -n \"TOKEN_SEARCH\\|token-sea",
+   "Bash S=$(mktemp) && cp docs/log.md \"$S\" && L22='* **Update**: Trimmed the token-search plan into `token-s",
+   "Bash cat README.md .env.example && git diff --stat",
+   "Bash sed -n 1,14p src-tauri/src/lib.rs",
+   "Bash sed -i '9s#.*#- The token-based search rewrite is live and the legacy palette is removed; see [docs/",
+   "Bash cat AGENTS.md; diff AGENTS.md CLAUDE.md && echo SAME; ls src-tauri; ls src-tauri/src src; ls .cursor",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "Bash cd /e/CodeExperiments/awakened-foundry/src-tauri && find src -name \"schema.rs\" -o -name \"world_db.rs",
+   "Bash cargo fmt --check 2>&1 | grep \"^Diff in\" | sed 's/ at line.*//' | sort | uniq -c; cargo clippy --all",
+   "mcp__linear__save_issue ## Problem",
+   "Write E:\\CodeExperiments\\awakened-foundry\\AGENTS.md",
+   "Bash cd /e/CodeExperiments/awakened-foundry && printf '@AGENTS.md\\n' > CLAUDE.md && ls src-tauri/src/desk",
+   "Bash sed -i 's#overlay window, focus and hotkey handling\\.#overlay window, focus tracking, global hotkey,",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue"
+  ],
+  "compactedAfter": true,
+  "reply": "All five docs and cleanup issues are committed to `main` and marked Done in Linear.\n\n| Commit | Issue | What changed |\n|---|---|---|\n| `a76b1c0` | SSV-23 | Deleted the stray `Untitled` file and removed the unused `fuse.js` dependency. |\n| `530ebc6` | SSV-24 | Deleted 8 old search files (616 lines). Moved `ResultsSection` (still in use) up to `panel/` and removed the types only the deleted files used. |\n| `ae5d4fa` | SSV-22 | The 1,011-line token-search plan is now a 286-line `docs/token-search-design.md`, corrected against the code. The finished checklist is deleted; its open items are already Linear issues. |\n| `f49d66d` | SSV-19 | README went from 1,095 lines to 89, now a setup guide that matches the code. Its unique content moved into `docs/` first. Added `.env.example`. |\n| `d81f82f` | SSV-20 | `AGENTS.md` is the single source for agent instructions; `CLAUDE.md` just imports it (`@AGENTS.md`). |\n\n**Checks:** `pnpm build`, `pnpm test:run` (82 tests, including the docs check), `pnpm docs:check` and `cargo test` (20 tests) all pass.\n\n**Things to know:**\n- **New issue SSV-32:** `cargo fmt --check` and `cargo clippy -D warnings` fail on Rust code that predates this work: 12 unformatted files and 6 clippy errors. `AGENTS.md` lists both commands, notes they currently fail, and points to SSV-32.\n- **Typing a `keyword:value` then Space already turns it into a chip.** The old plan listed this as future work. Still planned in SSV-27: a dedicated `:` key, Tab autocomplete, and choosing several values without the list closing. You may want to trim SSV-27 so it doesn't repeat what's built.\n- **Not yet tried in the running app:** the search palette after the SSV-24 deletions. The manual smoke test in SSV-31 covers it.\n- **Left as is on purpose:** `docs/architecture-review-2026-06-10.md` still names the old plan file and deleted modules, because it's a dated snapshot.\n\n`main` is 7 commits ahead of `origin` and nothing is pushed. SSV-21 is still waiting on your Radix/shadcn decision."
+ },
+ {
+  "uuid": "34688583-902e-4ffd-a79f-aaedfd351583",
+  "n": 18,
+  "prompt": "What the question about?",
+  "tools": [
+   "Bash cat .cursor/rules/react-radix-shadcn.mdc | head -60; ls src/components 2>/dev/null; ls components.js"
+  ],
+  "reply": "It's about SSV-21, the issue for sharing your Cursor coding conventions with Claude Code. One of those Cursor rules contradicts the code, so before I copy it into Claude Code's instructions you need to decide whether it stays.\n\n**What the rule says:** `.cursor/rules/react-radix-shadcn.mdc` tells agents to use Radix and shadcn/ui before writing their own UI parts such as dialogs, dropdowns, tooltips and popovers. If the project doesn't have them yet, it says to install them.\n\n**What the code actually does:**\n- `@radix-ui/react-dialog` is a dependency, but nothing imports it. I left it in place during SSV-23 for this reason.\n- shadcn isn't set up: there is no `components.json` and no `src/components/ui/`.\n- The UI is hand-built. For example, `src/components/Tooltip.tsx` is a custom tooltip, and the search dropdown has its own keyboard handling.\n\nIf I share the rule as written, Claude Code will start adding Radix and shadcn on its next UI task, which pulls against the existing code.\n\n**Your options:**\n1. **Adopt Radix/shadcn:** keep the rule and treat the custom parts as things to migrate over time. Most accessible, but it means a new dependency stack and its default styles to fit around your `af-*` tokens.\n2. **Stay custom:** drop the rule, remove the unused `@radix-ui/react-dialog`, and write down \"build our own, using `af-*` tokens\" as the convention.\n3. **Middle ground:** use bare Radix primitives (no shadcn) only for the hard accessibility cases like dialogs, focus traps and popovers, and keep everything else custom.\n\nFor a small overlay with its own visual style, I'd recommend option 3: you get correct focus and keyboard behavior where it's hard to get right, without adopting shadcn's styling. Once you pick, I'll finish SSV-21 and link the conventions from `AGENTS.md`."
+ },
+ {
+  "uuid": "e2e8f1a3-ed8e-4207-b819-d5a5d6ed9f76",
+  "n": 19,
+  "prompt": "do those fully customizable components?",
+  "tools": [],
+  "reply": "Yes, both are fully customizable, in different ways.\n\n**Radix primitives: you control all the styling, they control the behavior.**\n- They ship with no styles. Every part (`Dialog.Content`, `Popover.Trigger` and so on) is a plain element you style with your own classes, including `af-*` tokens.\n- What they handle for you is the hard part: focus trapping, focus return, Esc and outside-click dismissal, ARIA attributes, keyboard navigation, and rendering in a portal.\n- You can override that behavior through props, not by editing it:\n  - `onEscapeKeyDown` / `onPointerDownOutside` with `preventDefault()` to block dismissal.\n  - `modal={false}` to turn off the focus trap.\n  - `forceMount` to keep content mounted for animations.\n  - `asChild` to render through your own element instead of theirs.\n- So it's very flexible, but you're working inside their behavior model.\n\n**shadcn/ui: not a library. It copies source files into your repo.**\n- The CLI writes the component code (Radix plus Tailwind classes) into `src/components/ui/`, and from then on you own it. You can edit anything: markup, classes, behavior.\n- The catch is the starting point. Its styles use shadcn's own CSS variables (`--primary`, `--muted` and so on), which you'd map to or replace with your `af-*` tokens.\n- Recent shadcn releases also target Tailwind 4, and this repo is on Tailwind 3, so you'd have to use the older v3-compatible components or adapt them.\n\n**What this means for this repo:**\n- Radix alone fits your existing design system with no translation, since there's no foreign styling to remove.\n- shadcn mostly saves typing, but much of what it would give you would be rewritten into your style anyway.\n- One thing to watch: the overlay already has its own Esc handling (`desktop/esc_hook.rs` plus the search keyboard logic), and a Radix Dialog handles Esc itself. You'd connect the two with `onEscapeKeyDown`. That works, but it's a deliberate step each time.\n\nThat's why I suggested option 3: bare Radix primitives for the hard accessibility cases, custom components for everything else, and no shadcn."
+ },
+ {
+  "uuid": "ef6a6e3a-d9e4-474a-8e0e-97e83a820112",
+  "n": 20,
+  "prompt": "fare",
+  "tools": [
+   "mcp__linear__get_issue",
+   "Bash ls -la .cursor .cursor/rules .cursor/skills 2>&1 | head -30; for f in .cursor/rules/*.mdc; do echo \"",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue",
+   "Bash cd /e/CodeExperiments/awakened-foundry/.cursor/skills && for d in *; do echo \"######## $d\"; ls -R $d",
+   "Bash cd /e/CodeExperiments/awakened-foundry && head -30 skills-lock.json; ls .agents/skills .claude/skill",
+   "Bash grep -n \"sql_query(\" -A1 src-tauri/src/manifest/search/*.rs src-tauri/src/manifest/diesel_db.rs | gr",
+   "Bash ls tailwind.config.* && sed -n 1,40p tailwind.config.*; grep -oE \"\\-\\-af-[a-z-]+:\" src/index.css | s",
+   "Bash grep -rn \"af-text-h2\" src tailwind.config.js index.html | grep -v \"var(--af-text-h2\" ; grep -rln \"af",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\react.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\styling.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\rust.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\database.md",
+   "Write E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\index.md",
+   "Bash grep -n \"thiserror\" src-tauri/Cargo.toml src-tauri/src/manifest/error.rs | head -3; grep -rln \"invok",
+   "Bash grep -rn \"@tauri-apps/api/core\\|invoke\" src --include=*.ts --include=*.tsx | grep -v test | grep imp",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\docs\\agents\\conventions\\rust.md",
+   "ToolSearch select:WebSearch",
+   "WebSearch Cursor agent skills directories .agents/skills .cursor/skills .claude/skills discovery",
+   "Bash for s in diesel-over-raw-sql rust-enums-over-strings css-text-variables-check engineering-discipline",
+   "Bash cd /e/CodeExperiments/awakened-foundry/.claude/skills && \\",
+   "Bash cd /e/CodeExperiments/awakened-foundry/.cursor/rules && git mv react-components.mdc react.mdc && git",
+   "Bash cd /e/CodeExperiments/awakened-foundry && grep -n \"\" docs/index.md | sed -n '/Agents/,$p'",
+   "Bash \\",
+   "Edit E:\\CodeExperiments\\awakened-foundry\\AGENTS.md",
+   "Bash pnpm -s docs:check && pnpm test:run 2>&1 | grep -E \"Tests \" ; grep -rn \"rust-base\\|tauri-base\\|react",
+   "Bash git add .cursor .claude/skills/css-text-variables-check .claude/skills/diesel-over-raw-sql .claude/s",
+   "mcp__linear__save_comment",
+   "mcp__linear__save_issue"
+  ],
+  "reply": "I took \"fare\" as agreement with bare Radix and no shadcn, and finished SSV-21 on that basis. It's committed to `main` as `28f31d6` and closed in Linear.\n\n**What changed:**\n- **One copy of each convention:** `docs/agents/conventions/` now holds `react.md`, `styling.md`, `rust.md` and `database.md`, each checked against the code.\n  - `react.md` records the Radix decision, including the step of hooking a Radix dialog's Esc into the overlay's own Esc handling.\n  - `database.md` separates the Diesel search index from the read-only Bungie world database.\n- **Cursor rules are now short pointers** to those docs and keep their file-matching patterns. The old Radix/shadcn rule is gone; `shell-cd.mdc` stays Cursor-only.\n- **Skills moved to `.claude/skills/`:** `diesel-over-raw-sql`, `rust-enums-over-strings`, `css-text-variables-check` and `engineering-discipline`. Cursor also reads that folder ([Cursor docs](https://cursor.com/docs/skills)), so one copy reaches both tools. This differs from the issue, which planned a copy in `.agents/skills/` too; Cursor would have loaded those skills twice. Claude Code picked them up right away.\n- **Removed** the outdated `rust-base` and `tauri-base` skills. Their useful rules are now in `rust.md`, and their commands were already in `AGENTS.md`.\n- **`AGENTS.md`:** the rules it repeated are replaced by a \"Conventions\" section that links each doc.\n\n`pnpm docs:check` and the 82 tests pass.\n\n**Still open on this project:** SSV-32 (fixing the Rust format and lint failures) and SSV-25 to SSV-31 (search features and the manual smoke test). `main` is 8 commits ahead of `origin` and not pushed.\n\nSources:\n- [Cursor docs: Agent Skills](https://cursor.com/docs/skills)"
+ },
+ {
+  "uuid": "9b740743-e250-44f6-b841-cfec62e8a4c5",
+  "n": 21,
+  "prompt": "f17 works, f1 doesnt",
+  "tools": [
+   "Bash cat src-tauri/src/desktop/shortcuts.rs; sed -n 1,40p src-tauri/src/config.rs; grep -rn \"F1\\b\\|\\\"F\\|C",
+   "Bash sed -n 1,80p src-tauri/src/desktop/esc_hook.rs | grep -n \"VK_\\|SetWindowsHookEx\\|return\\|CallNextHoo",
+   "Bash P=\"$(ls -d ~/.cargo/registry/src/*/tauri-plugin-global-shortcut-2* | tail -1)\"; grep -n \"register\\|s",
+   "PowerShell Add-Type -TypeDefinition @'"
+  ],
+  "reply": "I'm assuming you mean the overlay hotkey: `OVERLAY_HOTKEY=F17` works but `F1` doesn't. I'll check how the hotkey is parsed and registered."
+ }
+]

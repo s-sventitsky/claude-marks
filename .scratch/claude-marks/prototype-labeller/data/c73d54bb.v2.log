@@ -1,0 +1,13 @@
+  1 new_main  t1 'Side panel marker spike'        [] Diamond absent: no plain prompt drawn yet; three fixes appli
+  2 continue  t1 'Side panel marker spike'        [] Plain prompt now stored; marker test steps repeated
+  3 continue  t1 'Side panel marker spike'        [] Row ids match; ctrl+x tab never reached band; pane lagged
+  4 continue  t1 'Side panel marker spike'        ['landmark'] Ctrl-x dropped for /spike command; findings logged to ticket
+  5 continue  t1 'Side panel marker spike'        ['branch_point'] Status-line shortcut-plus-feature idea appended to ticket 07
+  6 continue  t1 'Side panel marker spike'        [] Keyboard entry settled: /spike opens pane, single-key shortc
+  7 continue  t1 'Side panel marker spike'        [] Jump list scoped to current conversation; alpha id survives 
+  8 continue  t1 'Side panel marker spike'        [] Resumed copies are snapshots; later prompts unreachable; ids
+  9 continue  t1 'Side panel marker spike'        ['branch_point'] Zero entries: resumed transcript has 19 prompts, 16 pre-comp
+ 10 continue  t1 'Side panel marker spike'        [] Scroll test showed drawn-on-scroll; added /spike-file to tes
+ 11 continue  t1 'Side panel marker spike'        ['landmark'] Spike resolved: jumps reach post-compaction rows only; ticke
+ 12 new_main  t2 'Choosing next claude-marks ticket' ['branch_point'] Three open tickets listed; main-screen grilling recommended 
+cost reported by CLI: $0.0086

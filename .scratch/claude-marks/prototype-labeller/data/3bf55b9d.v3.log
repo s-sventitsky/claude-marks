@@ -1,0 +1,7 @@
+  1 new_main  t1 'Keyboard menu for marks'        ['branch_point'] Keyboard menu proposed; normal screen needs reader view work
+  2 continue  t1 'Keyboard menu for marks'        [] Portal as main navigation, scrolling as fullscreen extra
+  3 continue  t1 'Keyboard menu for marks'        ['branch_point'] Tree can't replace conversation; offers browse and folding o
+  4 continue  t1 'Keyboard menu for marks'        ['landmark'] User works in VS Code terminal fullscreen; layout shifts to 
+  5 continue  t1 'Keyboard menu for marks'        ['landmark'] Keyboard menu direction recorded on map and UI tickets
+  6 continue  t1 'Keyboard menu for marks'        [] Spike to run in fresh session via /clear then /wayfinder
+cost reported by CLI: $0.0042

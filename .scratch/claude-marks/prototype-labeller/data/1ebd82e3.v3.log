@@ -1,0 +1,22 @@
+  1 new_main  t1 "Matt's skills setup check"      [] Confirmed Matt's plugin and project skills are set up, with 
+  2 new_main  t2 'Move tracking to Linear'        ['landmark'] Issue tracker docs rewritten for Linear; connection pending
+  3 continue  t2 'Move tracking to Linear'        [] Opened /mcp to connect the Linear server for the tracker mov
+  4 continue  t2 'Move tracking to Linear'        ['landmark'] awakened-foundry Linear project created; skills now target i
+  5 new_main  t3 'Move docs to OKF'               ['branch_point'] OKF not found in repo; asked which migration kind meant
+  6 continue  t3 'Move docs to OKF'               ['branch_point'] OKF is plain Markdown frontmatter in git; breakdown given, a
+  7 continue  t3 'Move docs to OKF'               ['landmark', 'branch_point'] SSV-18 filed for OKF migration; three decisions still open
+  8 resume    t2 'Move tracking to Linear'        ['branch_point'] Prefix needs a new Linear team; user picks option and key
+  9 new_sub   t4 'Linear free plan limits'        [] Free plan allows 2 teams and 250 issues; new team uses last 
+ 10 resume    t2 'Move tracking to Linear'        ['landmark'] Kept SSV prefix; no Linear changes; decision saved to memory
+ 11 continue  t2 'Move tracking to Linear'        ['landmark'] Linear tracker switch committed on new branch; nothing pushe
+ 12 continue  t2 'Move tracking to Linear'        ['landmark'] Linear commit merged to main; small tasks go straight to mai
+ 13 resume    t3 'Move docs to OKF'               ['landmark', 'branch_point'] OKF migration done, SSV-18 closed, committed locally as 7d04
+ 14 new_sub   t5 'Autocompact threshold setting'  ['branch_point'] Autocompact set to 30% globally; restart needed
+ 15 new_main  t6 'Awakened Foundry docs review'   ['branch_point'] Docs review finds README stale; proposes four doc fixes
+ 16 continue  t6 'Awakened Foundry docs review'   ['landmark'] Filed 13 Linear issues SSV-19 to SSV-31 for review follow-up
+ 17 continue  t6 'Awakened Foundry docs review'   ['landmark'] Five docs and cleanup issues committed to main, closed
+ 18 new_main  t7 'Share Cursor conventions'       ['branch_point'] Radix/shadcn rule conflicts with custom UI; three options of
+ 19 new_sub   t8 'Radix and shadcn customizability' [] Radix is unstyled and customizable; shadcn copies editable s
+ 20 resume    t7 'Share Cursor conventions'       ['landmark'] Option 3 applied: conventions docs and Cursor rules committe
+ 21 new_main  t9 'F1 overlay hotkey not working'  [] OVERLAY_HOTKEY=F17 works, F1 doesn't; checking hotkey parsin
+cost reported by CLI: $0.0156

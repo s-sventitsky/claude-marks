@@ -1,0 +1,46 @@
+{
+  "writtenAt": "2026-10-11T11:37:57.796Z",
+  "surface": "terminal",
+  "viewport": {
+    "columns": 208,
+    "rows": 43,
+    "isFullscreen": true
+  },
+  "fold": "off",
+  "appendsTotal": 1,
+  "rendersTotal": 2,
+  "appendsMatchedByRender": 1,
+  "appendsThisSession": 1,
+  "appends": [
+    {
+      "uuid": "31a6fc26-ce30-4156-8970-aeeb15dbe32c",
+      "text": "I can't see square simbol in side panel, this is w",
+      "sessionStart": 1791718443590,
+      "rendered": true
+    }
+  ],
+  "renderedNotAppended": [
+    {
+      "id": "placeholder",
+      "text": "I can't see square simbol in side panel, this is w",
+      "renders": 2
+    }
+  ],
+  "jumps": [
+    {
+      "n": 1,
+      "uuid": "placeholder",
+      "source": "render",
+      "deny": "nothing drawn under that requestId",
+      "ok": false
+    }
+  ],
+  "presses": [
+    {
+      "element": "go:placeholder",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    }
+  ]
+}

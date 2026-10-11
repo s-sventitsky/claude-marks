@@ -1,0 +1,22 @@
+  1 new_main  t1 'Matt skills setup check'        [] Matt's skills confirmed installed in plugin and project
+  2 new_main  t2 'Move tracking to Linear'        [] Issue tracker docs and config repointed to Linear; connectio
+  3 continue  t2 'Move tracking to Linear'        [] Ran /mcp to connect Linear; team key still pending
+  4 continue  t2 'Move tracking to Linear'        ['landmark'] awakened-foundry Linear project created; docs repointed, unc
+  5 new_main  t3 'Move docs to OKF'               ['branch_point'] OKF not found in repo; asks what it is and which option
+  6 continue  t3 'Move docs to OKF'               ['branch_point'] OKF is plain Markdown frontmatter rules; asks docs/ placemen
+  7 continue  t3 'Move docs to OKF'               ['landmark'] SSV-18 filed for OKF migration; three decisions still open
+  8 resume    t2 'Move tracking to Linear'        ['branch_point'] Prefix comes from team key; new team or rename offered
+  9 new_sub   t4 'Linear free plan limits'        ['branch_point'] Free plan caps 2 teams, 250 issues; new team uses last
+ 10 resume    t2 'Move tracking to Linear'        ['landmark'] Kept SSV prefix, no Linear changes; AGENTS.md synced, uncomm
+ 11 continue  t2 'Move tracking to Linear'        ['landmark', 'branch_point'] Linear tracker switch committed to new branch chore/linear-i
+ 12 continue  t2 'Move tracking to Linear'        ['landmark'] Linear commit moved to main; small tasks now go straight to 
+ 13 resume    t3 'Move docs to OKF'               ['landmark', 'branch_point'] OKF docs migration finished, SSV-18 closed, committed to mai
+ 14 new_sub   t5 'Autocompact threshold'          [] Autocompact set to 30% globally; takes effect after restart
+ 15 new_main  t6 'Improve docs outside docs/'     ['branch_point'] Root docs reviewed; README rewrite and cleanups proposed
+ 16 continue  t6 'Improve docs outside docs/'     ['landmark'] Filed 13 Linear issues, SSV-19 to SSV-31, in Backlog
+ 17 continue  t6 'Improve docs outside docs/'     ['landmark'] Docs and cleanup issues committed to main, marked Done
+ 18 new_sub   t7 'SSV-21 Radix/shadcn decision'   ['branch_point'] SSV-21 needs Radix/shadcn choice; Cursor rule conflicts with
+ 19 continue  t7 'SSV-21 Radix/shadcn decision'   [] Radix is unstyled behavior; shadcn copies editable source in
+ 20 continue  t7 'SSV-21 Radix/shadcn decision'   ['landmark'] SSV-21 done: bare Radix chosen, conventions docs committed
+ 21 new_main  t8 'Overlay hotkey F1 bug'          [] F17 overlay hotkey works, F1 doesn't; investigating parsing 
+cost reported by CLI: $0.0160

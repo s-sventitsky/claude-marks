@@ -1,0 +1,7 @@
+  1 new_main  t1 'Keyboard menu navigation workaround' [] Proposed keyboard menu; reader view as workaround for normal
+  2 continue  t1 'Keyboard menu navigation workaround' [] Proposes portal as main navigation, with fullscreen-only jum
+  3 continue  t1 'Keyboard menu navigation workaround' ['branch_point'] Tree can't replace conversation; offers browse mode or foldi
+  4 continue  t1 'Keyboard menu navigation workaround' ['landmark'] User works in VS Code terminal; fullscreen layout suits the 
+  5 continue  t1 'Keyboard menu navigation workaround' ['landmark'] User agreed keyboard-menu UI direction; recorded on map and 
+  6 continue  t1 'Keyboard menu navigation workaround' ['landmark'] User agreed to run the row identity spike in a fresh session
+cost reported by CLI: $0.0037

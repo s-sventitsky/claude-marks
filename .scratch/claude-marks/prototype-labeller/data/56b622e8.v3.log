@@ -1,0 +1,10 @@
+  1 new_main  t1 'Claude Code plugins'            [] Explains plugin types and management; mattpocock-skills alre
+  2 continue  t1 'Claude Code plugins'            [] Mods are plugins that hook into Claude Code's engine and UI
+  3 new_main  t2 'Agent skills docs setup'        [] Drafted CLAUDE.md and three agent docs; awaiting write appro
+  4 continue  t2 'Agent skills docs setup'        ['landmark'] Four agent docs files written; skills now use them
+  5 new_main  t3 'Bookmarks mod spec'             ['branch_point'] Wayfinder map starts: five design questions for bookmarks mo
+  6 continue  t3 'Bookmarks mod spec'             ['landmark'] Destination fixed: terminal-first thread and bookmark mod sp
+  7 continue  t3 'Bookmarks mod spec'             ['landmark'] Exchanges labelled by cheap model; correctable; band plus pa
+  8 continue  t3 'Bookmarks mod spec'             ['landmark'] Auto-bookmarks confirmed as branch points and landmarks; /ma
+  9 continue  t3 'Bookmarks mod spec'             ['landmark'] Mod map charted; spec destination and research tickets writt
+cost reported by CLI: $0.0066

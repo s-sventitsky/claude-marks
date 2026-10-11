@@ -1,0 +1,7 @@
+  1 new_main  t1 'Keyboard menu navigation'       ['branch_point'] Keyboard menu works; normal screen needs a reader-view worka
+  2 continue  t1 'Keyboard menu navigation'       [] Portal as main navigation, scrolling as a fullscreen extra
+  3 continue  t1 'Keyboard menu navigation'       ['branch_point'] Tree-as-main rejected; folding and browse mode suggested as 
+  4 continue  t1 'Keyboard menu navigation'       [] VS Code fullscreen terminal suits a keyboard side pane; port
+  5 continue  t1 'Keyboard menu navigation'       ['landmark'] UI direction recorded on map and tickets; spike extended
+  6 continue  t1 'Keyboard menu navigation'       [] Spike moved to fresh /wayfinder session; steps and hot reloa
+cost reported by CLI: $0.0042

@@ -1,0 +1,462 @@
+{
+  "writtenAt": "2026-10-11T12:29:28.382Z",
+  "surface": "terminal",
+  "viewport": {
+    "columns": 135,
+    "rows": 34,
+    "isFullscreen": true
+  },
+  "fold": "off",
+  "appendsTotal": 12,
+  "rendersTotal": 7,
+  "appendsMatchedByRender": 6,
+  "appendsThisSession": 2,
+  "appends": [
+    {
+      "uuid": "31a6fc26-ce30-4156-8970-aeeb15dbe32c",
+      "text": "I can't see square simbol in side panel, this is w",
+      "sessionStart": 1791718443590,
+      "rendered": false
+    },
+    {
+      "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "text": "pingpong",
+      "sessionStart": 1791718677934,
+      "rendered": false
+    },
+    {
+      "uuid": "c2b92584-8d6b-48fd-9deb-03eac83ea4fc",
+      "text": "panel only updates with new entry when I'm put in ",
+      "sessionStart": 1791718677934,
+      "rendered": false
+    },
+    {
+      "uuid": "390a2bbf-6dcb-4b74-a63a-5c9a9f0ce35d",
+      "text": "we could drop a ctrl-x and go with command and ite",
+      "sessionStart": 1791718677934,
+      "rendered": false
+    },
+    {
+      "uuid": "a26c4fb4-436c-4881-b154-edc07adf53df",
+      "text": "on the status line, we could use agents approach -",
+      "sessionStart": 1791719605286,
+      "rendered": false
+    },
+    {
+      "uuid": "56c236e2-cb47-4dae-9c98-72b881a86c6c",
+      "text": "yes, shortcuts worked",
+      "sessionStart": 1791719605286,
+      "rendered": false
+    },
+    {
+      "uuid": "bcfa4f02-d0dc-486a-9597-b75cc9483bbb",
+      "text": "matched count save as alpha, and just in case mark",
+      "sessionStart": 1791719605286,
+      "rendered": true
+    },
+    {
+      "uuid": "8113ff53-cfcc-4029-89b2-9c818df0ea6c",
+      "text": "So I've call resume without new session and it pre",
+      "sessionStart": 1791720277037,
+      "rendered": true
+    },
+    {
+      "uuid": "d5154a79-227b-4a24-bc52-0635ba932315",
+      "text": "zero appears, used hotkey and clicked on btn in th",
+      "sessionStart": 1791720277037,
+      "rendered": true
+    },
+    {
+      "uuid": "66d3b7a0-f03e-4df7-8b69-ea4612d7de7a",
+      "text": "I so fare, and what question about, but yearliest ",
+      "sessionStart": 1791720277037,
+      "rendered": true
+    },
+    {
+      "uuid": "bd83da01-8abd-4ebd-b9ff-5650b286e05f",
+      "text": "f17 works, f1 doesnt",
+      "sessionStart": 1791721201636,
+      "rendered": true
+    },
+    {
+      "uuid": "63c62570-4fcf-46f6-865a-87bff05026b4",
+      "text": "ok, what's next?",
+      "sessionStart": 1791721201636,
+      "rendered": true
+    }
+  ],
+  "renderedNotAppended": [
+    {
+      "id": "placeholder",
+      "text": "ok, what's next?",
+      "origin": "composer",
+      "onScreen": {
+        "first": 0,
+        "last": 1,
+        "of": 2
+      },
+      "renders": 4
+    }
+  ],
+  "fileTargets": [],
+  "jumps": [
+    {
+      "n": 1,
+      "uuid": "placeholder",
+      "source": "render",
+      "deny": "nothing drawn under that requestId",
+      "ok": false
+    },
+    {
+      "n": 2,
+      "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 2,
+      "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 1,
+      "uuid": "31a6fc26-ce30-4156-8970-aeeb15dbe32c",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 2,
+      "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 3,
+      "uuid": "c2b92584-8d6b-48fd-9deb-03eac83ea4fc",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 2,
+      "uuid": "b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "source": "append",
+      "ok": true
+    },
+    {
+      "n": 7,
+      "uuid": "59d3dd3b-45ac-40f1-915a-d8e01a63f100",
+      "source": "render",
+      "deny": "nothing drawn under that requestId",
+      "ok": false
+    },
+    {
+      "n": 6,
+      "uuid": "56c236e2-cb47-4dae-9c98-72b881a86c6c",
+      "source": "append",
+      "ok": true
+    }
+  ],
+  "presses": [
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:31a6fc26-ce30-4156-8970-aeeb15dbe32c",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:c2b92584-8d6b-48fd-9deb-03eac83ea4fc",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "band-hotkey",
+      "component": "AbovePrompt",
+      "requestId": "above-prompt",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-line",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "refresh",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-none",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "fold-off",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:b522c646-bc55-4876-8871-0e48ec0f8f05",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:59d3dd3b-45ac-40f1-915a-d8e01a63f100",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    },
+    {
+      "element": "go:56c236e2-cb47-4dae-9c98-72b881a86c6c",
+      "component": "Pane",
+      "requestId": "marks-spike",
+      "surface": "terminal"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+  1 new_main  t1 'Marks spike side panel'         ['landmark'] Diamond missing from panel; explained it sits on prompt rows
+  2 continue  t1 'Marks spike side panel'         [] User sent a plain test prompt; Claude replied and listed mar
+  3 continue  t1 'Marks spike side panel'         ['landmark'] User reported pane focus, ctrl+x m, and grey-view problems; 
+  4 continue  t1 'Marks spike side panel'         ['landmark'] Screenshots reviewed; ctrl-x dropped for /spike command and 
+  5 continue  t1 'Marks spike side panel'         [] User proposes agent-style status line hint with shortcut and
+  6 continue  t1 'Marks spike side panel'         ['landmark'] Confirmed /spike keyboard shortcuts work in VS Code; recorde
+  7 continue  t1 'Marks spike side panel'         ['landmark'] Scoped jump list to current chat; run 4 recorded on ticket 0
+  8 continue  t1 'Marks spike side panel'         ['landmark'] Confirmed resumed copies miss later prompts; ids survive /re
+  9 continue  t1 'Marks spike side panel'         ['branch_point'] Resumed chat showed zero jump entries; proposed two causes t
+ 10 continue  t1 'Marks spike side panel'         [] Post-scroll prompts jump correctly; added /spike-file to tes
+ 11 continue  t1 'Marks spike side panel'         ['landmark'] F17 jumped, F1 refused; spike resolved, ticket closed
+ 12 continue  t1 'Marks spike side panel'         ['branch_point'] Lists three open tickets; recommends Main-screen behaviour g
+cost reported by CLI: $0.0075

@@ -1,0 +1,22 @@
+  1 new_main  t1 "Matt's skills setup check"      [] User asks whether Matt's skills are set up; Claude confirms 
+  2 new_main  t2 'Linear issue tracker move'      ['landmark'] Repointed skills docs and MCP config to Linear; needs connec
+  3 continue  t2 'Linear issue tracker move'      [] User opened /mcp to connect the Linear server.
+  4 continue  t2 'Linear issue tracker move'      ['landmark'] Created Linear awakened-foundry project; skills now track is
+  5 new_main  t3 'Docs move to OKF'               ['branch_point'] Asked what OKF is; listed docs and two migration paths
+  6 continue  t3 'Docs move to OKF'               [] Clarified OKF as Open Knowledge Format; explained the spec a
+  7 continue  t3 'Docs move to OKF'               ['landmark'] Created SSV-18 in Linear for the OKF docs migration.
+  8 continue  t3 'Docs move to OKF'               ['branch_point'] Asked about a custom prefix; Linear uses team keys, so two o
+  9 continue  t3 'Docs move to OKF'               ['branch_point'] Free plan limits checked; team slot and issue cap affect the
+ 10 continue  t3 'Docs move to OKF'               ['landmark'] Chose no Linear changes; tracking two projects under existin
+ 11 continue  t3 'Docs move to OKF'               ['landmark'] Committed Linear tracker switch as ca3153a on new branch
+ 12 continue  t3 'Docs move to OKF'               ['landmark'] Fast-forwarded Linear commit onto main; saved small-task-to-
+ 13 continue  t3 'Docs move to OKF'               ['landmark', 'branch_point'] Reviewed SSV-18; OKF docs migration done, committed to main.
+ 14 continue  t3 'Docs move to OKF'               [] Set global autocompact to 30% in user settings
+ 15 continue  t3 'Docs move to OKF'               ['branch_point'] Reviewed docs outside docs/; proposed README rewrite and cle
+ 16 continue  t3 'Docs move to OKF'               ['landmark'] Filed 13 Linear issues (SSV-19 to SSV-31) for docs and token
+ 17 continue  t3 'Docs move to OKF'               ['landmark'] Committed five docs and cleanup issues; closed in Linear.
+ 18 continue  t3 'Docs move to OKF'               ['branch_point'] Asked what SSV-21 was; Claude explained the Radix/shadcn con
+ 19 continue  t3 'Docs move to OKF'               [] Compared Radix primitives and shadcn customization for this 
+ 20 continue  t3 'Docs move to OKF'               ['landmark'] User agreed to bare Radix; SSV-21 conventions docs committed
+ 21 new_main  t4 'F1 overlay hotkey bug'          [] F17 overlay hotkey works, F1 doesn't; investigating hotkey p
+cost reported by CLI: $0.0135

@@ -2,7 +2,7 @@
 
 Type: grilling
 Status: open
-Blocked by: 11
+Blocked by: 11, 15
 
 ## Question
 
@@ -14,3 +14,7 @@ How does search over the current conversation's structure work in the pane? It c
 - whether the band or `/marks <query>` can start a search directly.
 
 Blocked by [Command surface and corrections in the pane](11-command-surface.md) because both claim pane keys.
+
+## Comments
+
+- 2026-10-14, from [Research: full-transcript search](13-full-text-search-research.md): full-text search of prompts and replies is feasible with limits, from an in-memory index searched as you type. So this ticket can also decide whether full-text hits join the structure hits in one list or sit in a second section. Pre-compaction hits open in the portal, and in long conversations they are most of the hits.

@@ -1,7 +1,7 @@
 # UI: transient side pane
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: 14
 
 ## Question
@@ -32,3 +32,16 @@ Decide: which placement ships first, the panel's height and what a narrow or sho
 - 2026-10-14, rounds 11 to 13: the `prompt.edit` catcher worked for single presses but missed fast ones (a burst reaches the hook as one edit with no key). A version that took bursts and wiped leaked text still ate prompt typing and raced to re-take focus. Settled with the user: a pane has no catch-all key on build 2.1.299 (`Client` keys need a click, a focused `Input` loses the ring to the arrows). So every view always draws all its keys, dim and struck through where they can't act (`j` on the last exchange, `g` on one that can't be jumped to), and a truly stray letter goes to the prompt as in any engine dialog. Also seen: the left arrow in the pane opened the agents window. Round 13 refuses a person's `ui.focus` step with no element (an engine stop: another pane's tab, the close mark).
 - 2026-10-14, round 14: an event log (`/marks-proto log`) shows that left in the pane is no focus step. The engine raises `ui.close` with origin `person`, as for Esc, then shows the agents view. `ui.close` carries no key, so a mod can't tell left from Esc. Round 15 adds `/marks-proto keep on`, which refuses every person close, to test whether a refused close also stops the switch. Also learned: dev mods load per session (`~/.claude/dev-mods/<session id>/`), so when the conversation moved into background job `dba9fa16`, the mod had to be copied over and hot reload re-enabled.
 - 2026-10-14, round 15, known limit: left in the pane opens the agents and conversation list, in a background job and in a fresh `claude --plugin-dir` session alike. The engine raises `ui.close` (origin `person`, no key) and then switches views. Refusing the close (`/marks-proto keep on`) keeps the pane but does not stop the switch. No keybinding action names it (the `Pane` context binds nothing to left), so neither a mod nor `keybindings.json` can block it on build 2.1.299. Decision: accept it. The pane binds nothing to left, and movement stays on up/down and `j`/`k`. Worth reporting upstream: left in a focused mod pane should stay in the pane.
+- 2026-10-14: the user closed the ticket without a further round ("close it"). The open checks are settled from what earlier rounds showed, as listed in the answer.
+
+## Answer
+
+The transient side pane ships, and it is the only placement. Prototype: `prototype-ui/hooks/register.tsx` (rounds 8 to 15).
+
+- Opening: `/marks` opens the pane with the cursor on the exchange last jumped to (the latest exchange if there was no jump). A click on the band opens it on the band's exchange.
+- Enter jumps, then closes the pane (scroll, then close). Rounds 8 to 15 used this order and it worked. Close-then-scroll was never run and is dropped.
+- `p` opens the reader in the same pane. Esc goes back to the tree with the cursor on the reader's exchange, then a second Esc closes the pane. The pane keeps its keys after Esc.
+- Keys: every view always draws all its keys, dimmed and inert where they can't act (`j` on the last exchange, `g` on an unreachable one). A pane has no catch-all key on build 2.1.299, so a letter no key claims goes to the prompt, as in any engine dialog.
+- Left arrow: a known limit. In a focused pane the engine closes it (`ui.close`, origin `person`, no key) and opens the agents and conversation list. Neither a mod nor `keybindings.json` can block this on 2.1.299. The pane binds nothing to left. Movement is up/down and `j`/`k`. Worth reporting upstream.
+- Width: the engine docks the pane at 110 columns or more. Below that it seats inline above the prompt at 14 rows (`rows: 14`).
+- Main screen: as decided in [Main-screen behaviour: require fullscreen or degrade?](08-main-screen-behaviour.md), Enter opens the reader in place of a jump. Not re-checked with the transient pane. Check it during the build.

@@ -10,10 +10,20 @@ import type { Markers, View } from '../types'
 // Round 6: focus mode, the in-transcript outline and the wide pane are dropped; the pane's
 // tree, its reader and the thread dividers remain. Round 7: the band is back above the
 // prompt for "where am I"; the status line is only the hint for opening the pane.
+// Round 8 (issues/15-bottom-panel-prototype.md): the pane is transient. Enter jumps and
+// closes it; /marks reopens it on the last jump, a band click on the band's exchange.
+// Switches: /marks-proto order close-first|scroll-first, /marks-proto rows <n>.
+// Round 9: every switch between tree and reader puts the ring back on an element
+// (the tree on the reader's exchange, the reader on b), and Esc in the reader
+// re-takes the keys it handed to the prompt.
+// Rounds 10-12 tried to keep stray letters in the pane (hidden trap Buttons, a prompt.edit
+// catcher); neither held up, and the pane has no catch-all key. Round 13: every view always
+// draws all its keys (inert and dim where they can't act), and an arrow step onto one of
+// the engine's own stops (another pane's tab, the close mark) is refused: /marks-proto stops allow|deny.
 
 const PANE = 'marks'
-const MOD = 'C:/Users/Sergey Sventitsky/.claude/dev-mods/fb5c311b-3102-4d3e-92ec-dbad4b8633c5/marks-proto'
-const PROJECTS = 'C:/Users/Sergey Sventitsky/.claude/projects'
+const MOD = 'C:/Users/s.sventitsky/.claude/dev-mods/dba9fa16-da6e-4569-a6f6-dd165394120b/marks-proto'
+const PROJECTS = 'C:/Users/s.sventitsky/.claude/projects'
 const FIXTURES = ['1ebd82e3', '3bf55b9d', '56b622e8', 'c73d54bb']
 const DEMO = '1ebd82e3'
 
@@ -46,6 +56,22 @@ let where = 0
 let forceMainNow = false
 let lastStatus = ''
 let timer: Timer | undefined
+let lastJump = 0 // the exchange Enter last jumped to; a /marks reopen lands here
+let target = 0 // the row the ring starts on when the pane opens
+let order: 'close-first' | 'scroll-first' = 'scroll-first'
+let rows = 14
+let lastAction = ''
+let stops: 'allow' | 'deny' = 'deny'
+// Round 14: the agents view hides the header, so a timestamped log of focus and close
+// events outlives it. /marks-proto log prints it.
+const events: string[] = []
+// Left in the pane arrives as a person close, like Esc, then the engine shows the agents view.
+// /marks-proto keep on refuses every person close, to see whether that stops the switch.
+let keep = false
+const note = (s: string) => {
+  events.push(`${new Date().toTimeString().slice(0, 8)} ${s}`)
+  if (events.length > 20) events.shift()
+}
 
 // ---- model helpers ----
 const ex = (n: number) => fx.exchanges.find(x => x.n === n)
@@ -121,15 +147,51 @@ async function load($: EngineInterface) {
   })
 }
 
-const open = ($: EngineInterface) => $.ui.open({ id: PANE, title: 'marks', focus: true, closeOnEscape: true, rows: 14 })
+// Opens the pane with the ring on exchange n, scrolled to the middle.
+async function open($: EngineInterface, n: number) {
+  target = n
+  await update($, tickA, t => t + 1)
+  const r = await $.ui.open({ id: PANE, title: 'marks', focus: true, closeOnEscape: true, rows })
+  if (r.isPlaced && n) {
+    const key = `ex:${n}`
+    const f = await $.ui.focus({ requestId: PANE, key })
+    const s = await $.ui.scroll({ in: PANE, to: { key }, block: 'center' })
+    lastAction = `open on #${n}: focus ${'deny' in f && f.deny ? 'denied' : 'ok'}, scroll ${'deny' in s && s.deny ? 'denied' : 'ok'}`
+  }
+  return r
+}
+
+const deny = (r: { deny?: string }) => (r.deny ? `denied (${r.deny})` : 'ok')
+
+async function showList($: EngineInterface, n: number) {
+  await update($, viewA, () => ({ kind: 'list' }) as View)
+  const f = await $.ui.focus({ requestId: PANE, key: `ex:${n}` })
+  lastAction = `back to tree on #${n}: focus ${deny(f)}`
+}
+
+async function showReader($: EngineInterface, n: number, from: 'list' | 'deny') {
+  await update($, viewA, () => ({ kind: 'portal', n, from }) as View)
+  const f = await $.ui.focus({ requestId: PANE, key: 'key:b' })
+  lastAction = `reader on #${n}: focus ${deny(f)}`
+}
 
 async function go($: EngineInterface, n: number) {
-  if (reasonNoJump(n)) return update($, viewA, () => ({ kind: 'portal', n, from: 'list' }) as View)
-  const r = await $.ui.scroll({ to: { requestId: live.get(n)!.uuid }, block: 'start' })
+  if (reasonNoJump(n)) return showReader($, n, 'list')
+  const to = { requestId: live.get(n)!.uuid }
+  // Which comes first matters in fullscreen: closing the dock widens the transcript and reflows it.
+  if (order === 'close-first') await $.ui.close({ id: PANE })
+  const r = await $.ui.scroll({ to, block: 'start' })
   if ('deny' in r && r.deny) {
+    lastAction = `jump #${n} refused (${order}): ${String(r.deny)}`
     $.ui.toast(`Jump refused: ${String(r.deny)}`)
-    await update($, viewA, () => ({ kind: 'portal', n, from: 'deny' }) as View)
+    if (order === 'close-first') await $.ui.open({ id: PANE, title: 'marks', focus: true, closeOnEscape: true, rows })
+    await showReader($, n, 'deny')
+    return
   }
+  lastJump = n
+  lastAction = `jumped #${n} (${order})`
+  await update($, viewA, () => ({ kind: 'list' }) as View)
+  if (order === 'scroll-first') await $.ui.close({ id: PANE })
 }
 
 const focusedN = () => {
@@ -180,7 +242,7 @@ export const register: Register = on => {
   on('command.run', { command: 'marks' }, async $ => {
     await load($)
     await update($, viewA, () => ({ kind: 'list' }) as View)
-    const r = await open($)
+    const r = await open($, lastJump || where || latest())
     return { text: `marks prototype: ${mode} (${fx.id}), ${live.size} exchanges mapped to rows${r.isPlaced ? '' : ', pane waiting for room'}.` }
   })
 
@@ -195,7 +257,25 @@ export const register: Register = on => {
 
   on('command.run', { command: 'marks-proto' }, async ($, e) => {
     const [k, v] = e.args.trim().split(/\s+/)
-    if (k !== 'main') return { text: 'Usage: /marks-proto main on|off' }
+    if (k === 'order' && (v === 'close-first' || v === 'scroll-first')) {
+      order = v
+      return { text: `marks-proto: on Enter, ${v === 'close-first' ? 'close the pane, then jump' : 'jump, then close the pane'}` }
+    }
+    if (k === 'rows' && Number(v) > 0) {
+      rows = Number(v)
+      return { text: `marks-proto: the inline pane asks for ${rows} rows from the next open` }
+    }
+    if (k === 'stops' && (v === 'allow' || v === 'deny')) {
+      stops = v
+      await update($, tickA, t => t + 1)
+      return { text: `marks-proto: arrow steps onto engine stops ${v === 'deny' ? 'refused' : 'allowed'}` }
+    }
+    if (k === 'keep' && (v === 'on' || v === 'off')) {
+      keep = v === 'on'
+      return { text: `marks-proto: person closes ${keep ? 'refused (Esc and left both)' : 'allowed'}` }
+    }
+    if (k === 'log') return { text: events.length ? ['marks-proto log:', ...events].join(String.fromCharCode(10)) : 'marks-proto log: empty' }
+    if (k !== 'main') return { text: 'Usage: /marks-proto main on|off · order close-first|scroll-first · rows <n> · stops allow|deny · keep on|off · log' }
     forceMainNow = v === 'on'
     await update($, forceMainA, () => forceMainNow)
     refreshStatus($)
@@ -204,14 +284,39 @@ export const register: Register = on => {
 
   // Esc in the reader steps back to the tree instead of closing the pane.
   on('ui.close', async ($, e, next) => {
-    if (e.id !== PANE || e.origin.kind !== 'person') return next(e)
-    if ((await read($, viewA)).kind !== 'portal') return next(e)
+    note(`close ${e.id} by ${e.origin.kind}`)
+    if (e.id !== PANE) return next(e)
+    if (e.origin.kind !== 'person') return next(e)
+    if (keep) {
+      note('refused the person close (keep on)')
+      return { value: undefined }
+    }
+    const view = await read($, viewA)
+    if (view.kind !== 'portal') return next(e)
     await update($, viewA, () => ({ kind: 'list' }) as View)
+    // Esc already handed the keys to the prompt; once the refusal lands, take them back.
+    $.clock.after(30, async () => {
+      const r = await $.ui.open({ id: PANE, title: 'marks', focus: true, closeOnEscape: true, rows })
+      const f = await $.ui.focus({ requestId: PANE, key: `ex:${view.n}` })
+      lastAction = `Esc to tree on #${view.n}: placed ${r.isPlaced}, focus ${deny(f)}`
+      await update($, tickA, t => t + 1)
+    })
     // Answering without next keeps the pane open.
     return { value: undefined }
   })
 
+  on('ui.focus', async ($, e, next) => {
+    note(`focus ${e.component}/${e.requestId} -> ${e.element ?? 'engine stop'} by ${e.origin.kind}`)
+    return next(e)
+  })
+
   on('ui.focus', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    // An arrow onto an engine stop (no element: another pane's tab, the close mark) leaves the tree.
+    if (!e.element && e.origin.kind === 'person' && stops === 'deny') {
+      lastAction = 'refused a step onto an engine stop'
+      void update($, tickA, t => t + 1)
+      return { deny: 'marks keeps the ring in its tree' }
+    }
     focused = e.element
     return next(e)
   })
@@ -240,7 +345,7 @@ export const register: Register = on => {
           onPress={async () => {
             focused = `ex:${n}`
             await update($, viewA, () => ({ kind: 'list' }) as View)
-            await open($)
+            await open($, n)
           }}
         >
           <Text color={colorOf(x.thread)}>● </Text>
@@ -307,24 +412,26 @@ export const register: Register = on => {
     const fs = fsNow()
     const W = e.props.bodyColumns
     const narrow = e.props.placement === 'inline' || W < 60
-    const setView = (v: View) => update($, viewA, () => v)
 
     // Glyphs take the thread's colour; the shape tells the kind apart.
     const glyphs = (x: Exchange) =>
       x.bookmarks.length ? <Text color={colorOf(x.thread)}>{x.bookmarks.slice(0, 2).map(b => GLYPH[b.kind]).join('')}</Text> : ' '
 
+    // The ring starts on the open's target; the first row if that isn't drawn.
+    const hasTarget = fx.exchanges.some(x => x.n === target)
     let first = true
-    const auto = () => (first ? ((first = false), true) : undefined)
+    const auto = (n: number) => ((hasTarget ? n === target : first) ? ((first = false), true) : undefined)
 
     const exRow = (x: Exchange, indent: string) => {
       const reach = !!live.get(x.n)?.reachable
       const here = fs && where === x.n
+      const jumped = lastJump === x.n
       return (
-        <Button key={`ex:${x.n}`} plain autoFocus={auto()} onPress={() => go($, x.n)}>
-          <Text dimColor>{`${indent}${String(x.n).padStart(2)} `}</Text>
+        <Button key={`ex:${x.n}`} plain autoFocus={auto(x.n)} onPress={() => go($, x.n)}>
+          <Text dimColor={!jumped || undefined} color={jumped ? 'suggestion' : undefined}>{`${indent}${jumped ? '›' : ' '}${String(x.n).padStart(2)} `}</Text>
           {glyphs(x)}
           <Text dimColor={!reach || undefined} bold={here || undefined}>
-            {' ' + fit(x.gist, W - indent.length - 7)}
+            {' ' + fit(x.gist, W - indent.length - 8)}
           </Text>
         </Button>
       )
@@ -364,15 +471,31 @@ export const register: Register = on => {
       return out
     }
 
-    const key = (k: string, label: string, onPress: () => void) => (
-      <Button key={`key:${k}`} plain hotkey={k} dimColor onPress={onPress}>
-        {label}
+    // A key the view can't act on now is still drawn, so its letter stays in the pane.
+    const key = (k: string, label: string, onPress: (() => unknown) | undefined) => (
+      <Button
+        key={`key:${k}`}
+        plain
+        hotkey={k}
+        dimColor
+        onPress={async () => {
+          if (onPress) return void (await onPress())
+          lastAction = `"${k}" does nothing here`
+          await update($, tickA, t => t + 1)
+        }}
+      >
+        <Text strikethrough={!onPress || undefined}>{label}</Text>
       </Button>
     )
 
+    const state = (
+      <Text dimColor wrap="truncate">
+        {`last jump #${lastJump || '-'} · open on #${target || '-'} · ${order} · rows ${rows} · stops ${stops} · ${lastAction || 'no action yet'}`}
+      </Text>
+    )
     const header = (
       <Text dimColor wrap="truncate">
-        {`${mode} ${fx.id} · ${fx.threads.length} threads · ${fx.exchanges.length} ex · ${live.size} on rows · ${fs ? 'fullscreen' : 'main screen'} · ${e.props.placement} ${W}c`}
+        {`${mode} ${fx.id} · ${fx.threads.length} threads · ${fx.exchanges.length} ex · ${live.size} on rows · ${fs ? 'fullscreen' : 'main screen'} · ${e.props.placement} ${W}c · ${viewport?.columns ?? '?'}x${viewport?.rows ?? '?'}`}
       </Text>
     )
 
@@ -385,15 +508,15 @@ export const register: Register = on => {
       const why = view.from === 'deny' ? 'The jump was refused, so the reader shows it.' : reasonNoJump(x.n)
       const step = (d: number) => {
         const y = fam[i + d]
-        return y && setView({ ...view, n: y.n })
+        return y && showReader($, y.n, view.from)
       }
       return (
         <Box flexDirection="column">
           <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-            {key('b', 'b: back', () => setView({ kind: 'list' }))}
-            {fam[i - 1] ? key('k', 'k: previous', () => step(-1)) : null}
-            {fam[i + 1] ? key('j', 'j: next', () => step(1)) : null}
-            {!why ? key('g', 'g: jump here', () => go($, x.n)) : null}
+            {key('b', 'b: back', () => showList($, x.n))}
+            {key('k', 'k: previous', fam[i - 1] ? () => step(-1) : undefined)}
+            {key('j', 'j: next', fam[i + 1] ? () => step(1) : undefined)}
+            {key('g', 'g: jump here', !why ? () => go($, x.n) : undefined)}
           </Box>
           <Text wrap="truncate">
             <Text color={colorOf(x.thread)} bold>
@@ -402,6 +525,7 @@ export const register: Register = on => {
             <Text dimColor>{` · #${x.n} · ${i + 1} of ${fam.length} in thread`}</Text>
           </Text>
           {why ? <Text color="warning">{why}</Text> : null}
+          {state}
           {x.bookmarks.map(b => (
             <Text>
               <Text color={colorOf(x.thread)}>{GLYPH[b.kind]} </Text>
@@ -421,8 +545,8 @@ export const register: Register = on => {
 
     const keys = (
       <Box flexDirection="row" columnGap={2} flexWrap="wrap">
-        {key('p', 'p: read', () => setView({ kind: 'portal', n: focusedN(), from: 'list' }))}
-        {fs ? key('i', `i: divider ${markers === 'divider' ? 'on' : 'off'}`, () => update($, markersA, m => (m === 'divider' ? 'off' : 'divider') as Markers)) : null}
+        {key('p', 'p: read', () => showReader($, focusedN(), 'list'))}
+        {key('i', `i: divider ${markers === 'divider' ? 'on' : 'off'}`, fs ? () => update($, markersA, m => (m === 'divider' ? 'off' : 'divider') as Markers) : undefined)}
       </Box>
     )
     const footer = fs ? null : <Text color="warning">{fit('Enter opens the reader. Jumping works in fullscreen.', W)}</Text>
@@ -430,6 +554,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {header}
+        {state}
         {keys}
         {footer}
         {mains().flatMap(m => [threadRow(m, () => go($, inFamily(m.id).at(-1)!.n), false), ...familyBlock(m)])}

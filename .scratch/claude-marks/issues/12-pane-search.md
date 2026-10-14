@@ -18,3 +18,4 @@ Blocked by [Command surface and corrections in the pane](11-command-surface.md) 
 ## Comments
 
 - 2026-10-14, from [Research: full-transcript search](13-full-text-search-research.md): full-text search of prompts and replies is feasible with limits, from an in-memory index searched as you type. So this ticket can also decide whether full-text hits join the structure hits in one list or sit in a second section. Pre-compaction hits open in the portal, and in long conversations they are most of the hits.
+- 2026-10-14, from [Command surface and corrections in the pane](11-command-surface.md): the tree now owns `a` (action menu), `m` (bookmark), `r` (rename) and `v` (range), on top of Enter, `p`, `i`, Esc, Tab and up/down. The reader owns `j`, `k`, `g`, `b`, `m` and Esc. `/` is free. `/marks` takes subcommands (`relabel`, `relabel from n`), so `/marks <query>` would need a rule for words that clash with them.

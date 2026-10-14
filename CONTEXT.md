@@ -16,6 +16,6 @@ A Claude Code mod that organizes the current conversation for navigation.
   - **Manual bookmark** — created by the user (`/mark` or clicking a glyph).
   - **Branch point** — auto: a reply that offered several options or directions worth returning to.
   - **Landmark** — auto: an exchange where something was settled (a decision, a final design, a commit).
-- **Correction** — a user edit to the labeller's output: rename a thread, move an exchange, merge threads. Corrections guide later labelling in the same conversation.
+- **Correction** — a user edit to the labeller's output: rename a thread, move a run of exchanges to another thread, merge one thread into another, or reparent a thread (promote, demote, move under another main thread). Corrections guide later labelling in the same conversation.
 
 Avoid: "label" as a noun for a thread (a thread *has* a label); "subconversation" or "group" (use sub-thread or thread).

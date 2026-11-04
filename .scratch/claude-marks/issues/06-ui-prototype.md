@@ -62,6 +62,7 @@ How should the band (current thread), the side pane (full tree with bookmarks) a
   - **The band is clickable:** the whole line is one plain Button that opens the pane.
 - 2026-10-11, round 7 (user): **Esc did not close the pane.** By default Esc only hands the keyboard back to the prompt. The pane now opens with `closeOnEscape: true`, so Esc closes it (and `b` still steps back from the reader).
 - 2026-10-11, round 7 (user): **Esc in the reader should go back to the tree.** A `ui.close` hook now refuses the person's close while the reader is showing and switches back to the tree. Esc on the tree closes the pane. Side effect: the close mark (×) also steps back while the reader shows.
+- 2026-11-04, from [Search in the pane](12-pane-search.md): `i` leaves the pane. Dividers on/off becomes a setting. `b` leaves the reader, since Esc already goes back.
 
 ## Answer
 

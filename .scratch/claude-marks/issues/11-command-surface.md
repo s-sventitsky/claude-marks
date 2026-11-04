@@ -17,6 +17,7 @@ Inputs: [UI: band, pane and inline markers](06-ui-prototype.md) (keyboard-first 
 ## Comments
 
 - 2026-10-14, from [UI: transient side pane](15-bottom-panel-prototype.md): pane key limits to plan around. Every view draws all its keys (dimmed where inert), and a letter no key claims goes to the prompt. Left arrow can't be bound, since the engine closes the pane into the agents list. Enter (jump and close), `p` (reader), Esc (back, then close), up/down and `j`/`k` are taken.
+- 2026-11-04, from [Search in the pane](12-pane-search.md): the tree's `r` and `m` are dropped. Rename and bookmark stay in the `a` menu only. The tree keeps `a`, `p`, `v`, `/`, Enter, Esc, Tab and arrows, and `v` is inert while a search filter is on. The reader drops `b` and adds `n`. `/marks find <query>` joins the commands.
 
 ## Answer
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] The mod loads as a function-hooks plugin and passes validate and tsc.
 - [x] Each composer prompt (`session.append` door `prompt`, main session only) creates an exchange keyed by the prompt row's uuid, with `excerpt`, `thread: null`, `label.status: 'pending'`. Rows drawn under `requestId: "placeholder"` are ignored.

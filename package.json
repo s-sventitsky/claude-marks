@@ -1,0 +1,15 @@
+{
+  "name": "claude-marks-dev",
+  "private": true,
+  "description": "Dev tooling for the claude-marks mod. The plugin itself is mod/.",
+  "scripts": {
+    "sync-types": "sh scripts/sync-types.sh",
+    "validate": "claude plugin validate mod",
+    "typecheck": "tsc -p mod",
+    "test": "claude plugin test mod",
+    "check": "npm run validate && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

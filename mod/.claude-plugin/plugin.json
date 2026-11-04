@@ -1,0 +1,8 @@
+{
+  "name": "marks",
+  "version": "0.1.0",
+  "description": "Sorts the current conversation into a thread tree with bookmarks, and jumps the transcript to any exchange.",
+  "license": "MIT",
+  "author": { "name": "Sergey Sventitsky" },
+  "types": "./types/index.d.ts"
+}

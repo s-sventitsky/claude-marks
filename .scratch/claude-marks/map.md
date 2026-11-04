@@ -22,6 +22,7 @@ A build-ready spec at `.scratch/claude-marks/spec.md` for a terminal-first Claud
   - Data persists across `--resume` / `--continue` for the same conversation.
   - Search (added 2026-10-11): the pane searches the current conversation. Settled on [Search in the pane](issues/12-pane-search.md).
 - Placement (2026-10-14): the tree is a pick-and-go tool, used now and then, not a persistent view. It opens in a transient side pane: Enter jumps and closes it, a reopen lands on the last jump, and the reader opens in the same pane. The band stays the only persistent piece. A bottom panel is not possible on build 2.1.299, and the user ruled out a band picker above the prompt (see Out of scope). [UI: transient side pane](issues/15-bottom-panel-prototype.md) fixed its behaviour; [Command surface and corrections in the pane](issues/11-command-surface.md) and [Search in the pane](issues/12-pane-search.md) plan on its keys.
+- MVP scope (2026-11-04): the spec is written for an MVP first: labeller, data file, band, side pane tree with jump and reader, `/mark`, inline dividers. Corrections and search are decided but go in an "After the MVP" section; retro-label and settings wait for after it. Detail on [Spec assembly: MVP spec.md](issues/18-mvp-spec.md).
 - The terminal is the user's main surface; design for it only. Specifically: the Claude Code CLI inside **VS Code's integrated terminal**, fullscreen layout, no tmux (2026-10-11). The normal (main-screen) layout is a secondary fallback.
 
 ## Decisions so far
@@ -50,7 +51,6 @@ A build-ready spec at `.scratch/claude-marks/spec.md` for a terminal-first Claud
 - **Settings** — what is user-configurable (labeller model with a fallback when the org allowlist blocks it, on/off, auto-bookmark kinds, transcript dividers on/off (moved out of the pane by [Search in the pane](issues/12-pane-search.md)), maybe a cost display from token `usage`); likely `userConfig`.
 - **Long conversations**: mostly settled by [Research: full-transcript search](issues/13-full-text-search-research.md). Files of 4 MiB or less are read whole; bigger ones stream through `$.process.spawn` (Git `cat.exe` on Windows, `cmd /c type` fallback), prefiltered before `JSON.parse`. One shared pass collects search text, the uuid/parent chain for liveness and the compaction boundaries; `session.append` keeps it current. `session.append` has no `parentUuid`, so a rewind still needs a re-read of the tail. `$.session.messages()` plays no part. Left open: cost per streamed piece inside the mod, whether `preservedSegment` rows are reachable after compaction, and whether a live session still draws pre-compaction rows.
 - **Side pane as a live map too** (2026-10-14): the user may later want the pane to stay open as a live conversation map, besides the pick-and-go use. The transient behaviour is settled ([UI: transient side pane](issues/15-bottom-panel-prototype.md)); revisit if the user asks for it after early use.
-- **Spec assembly** — writing `spec.md` from the resolved tickets.
 
 ## Out of scope
 

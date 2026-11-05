@@ -118,7 +118,7 @@ export const layoutTree = (file: ConversationFile, o: TreeOptions): TreeRow[] =>
     const segs: Segment[] = [jumped ? { text: prefix, bold: true } : { text: prefix, dim: true }]
     const g = pending.has(x.id) ? '…' : glyphs(x, SLOT)
     if (pending.has(x.id)) segs.push({ text: g, dim: true })
-    else if (g) segs.push({ text: g, color: colorOf(file, (x.thread as { id: string }).id) })
+    else if (g) segs.push(x.thread ? { text: g, color: colorOf(file, x.thread.id) } : { text: g, dim: true })
     if (g.length < SLOT) segs.push({ text: ' '.repeat(SLOT - g.length) })
     const text = ` ${fit(x.gist || x.excerpt, o.columns - prefix.length - SLOT - 1)}`
     segs.push(o.bandId === x.id ? { text, bold: true } : { text })

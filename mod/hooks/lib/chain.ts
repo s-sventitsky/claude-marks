@@ -3,7 +3,7 @@
 import type { ChainView, ConversationFile, Exchange, Thread } from '../../types/index'
 import type { Transcript } from './jsonl'
 import { foldPrompt, newExchange } from './model'
-import { emptyRows, type ExchangeRows, type ReplyRow, type RowIndex } from './rows'
+import type { ExchangeRows, ReplyRow, RowIndex } from './rows'
 
 /**
  * The row a walk goes to from `uuid`. The parentUuid (a boundary's logicalParentUuid),
@@ -82,7 +82,7 @@ export const turnsOf = (t: Transcript): Turn[] => {
 }
 
 const mergeRows = (live: ExchangeRows | undefined, turn: Turn): ExchangeRows => {
-  const read: ExchangeRows = { ...emptyRows(), prompts: turn.prompts.map(p => p.text), replies: turn.replies, tools: turn.tools }
+  const read: ExchangeRows = { prompts: turn.prompts.map(p => p.text), replies: turn.replies, tools: turn.tools }
   if (!live) return read
   const seen = new Set(read.replies.map(r => r.uuid))
   return {

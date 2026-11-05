@@ -116,6 +116,17 @@ describe('rebuild on load', () => {
     expect(await bandText($)).toBe('● Login · here #12/12 · 11 unlabelled')
   })
 
+  test('the gap record is published with the file, before the transcript pass', async ($, on) => {
+    const gap = Array.from({ length: 11 }, (_, i) => ex(`u${i + 2}`, false))
+    setup(on, { transcript: J.jsonl(...chat(12)), data: data(ex('u1', true), ...gap) })
+    await $.session.start(SESSION_START)
+    // No clock advance: the transcript pass has not run.
+    const ui = await $.ui.mount({ ...BAND, component: 'Pane', requestId: 'marks', props: { title: 'marks', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 14 }, view: {} } } as any)
+    const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text).join('\n')
+    expect(texts).toContain('Unlabelled')
+    expect(texts).not.toContain('…')
+  })
+
   test('no transcript found: the tracked file is still gap-checked', async ($, on) => {
     const s = setup(on, { data: data(ex('u1', true), ex('u2', false)) })
     await $.session.start(SESSION_START)

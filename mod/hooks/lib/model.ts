@@ -48,7 +48,7 @@ export const foldPrompt = (file: ConversationFile, exchangeId: string, uuid: str
 /**
  * The current thread: the thread of the latest labelled exchange, or of the
  * latest one before `beforeId` when given. Undefined when there is none.
- * Liveness (ticket 03) narrows "latest" to live exchanges.
+ * Pass a live view (liveView in chain.ts) to get the latest live one.
  */
 export const currentThread = (file: ConversationFile, beforeId?: string): Thread | undefined => {
   const end = beforeId === undefined ? file.exchanges.length : file.exchanges.findIndex(x => x.id === beforeId)

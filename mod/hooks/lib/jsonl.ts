@@ -55,17 +55,25 @@ export const catCommands = (path: string, o: { windows: boolean; gitCats: readon
 
 /** Splits streamed text into lines; a line cut across pieces is held until it ends. Empty lines are dropped. */
 export const lineSplitter = () => {
-  let rest = ''
+  // The unfinished line's pieces, joined only once its end arrives: `cmd /c type`
+  // writes a 1 MB line in hundreds of pieces, and re-joining each time is quadratic.
+  let held: string[] = []
   const out = (parts: string[]) => parts.map(l => (l.endsWith('\r') ? l.slice(0, -1) : l)).filter(l => l.length > 0)
   return {
     push(text: string): string[] {
-      const parts = (rest + text).split('\n')
-      rest = parts.pop() ?? ''
+      const nl = text.indexOf('\n')
+      if (nl < 0) {
+        held.push(text)
+        return []
+      }
+      const parts = text.split('\n')
+      parts[0] = held.join('') + parts[0]
+      held = [parts.pop() ?? '']
       return out(parts)
     },
     end(): string[] {
-      const last = rest
-      rest = ''
+      const last = held.join('')
+      held = []
       return out([last])
     },
   }
@@ -85,6 +93,7 @@ const UUID = /"uuid":"([^"]+)","timestamp"|"timestamp":"[^"]*","uuid":"([^"]+)"/
 
 const COMMAND = /<command-name>\/?([^<]+)<\/command-name>/
 const ARGS = /<command-args>([\s\S]*?)<\/command-args>/
+const BARE_COMMAND = /^\/[A-Za-z][\w:-]*(\s|$)/
 
 type Json = Record<string, any>
 
@@ -102,6 +111,8 @@ const userRow = (r: Json): Row | undefined => {
     return { kind: 'command', text: `/${name}${args ? ' ' + args : ''}` }
   }
   if (text.trimStart().startsWith('<')) return { kind: 'turn' }
+  // Older builds kept a typed local command (`/compact`) as a plain row with no origin.
+  if (origin === undefined && BARE_COMMAND.test(text)) return { kind: 'command', text: text.trim() }
   return text.trim() ? { kind: 'prompt', text } : undefined
 }
 

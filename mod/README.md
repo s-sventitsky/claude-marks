@@ -2,7 +2,7 @@
 
 A Claude Code mod that organizes the current conversation for navigation. Each prompt you type becomes an exchange in a per-conversation data file. Later builds label exchanges into a one-level thread tree with bookmarks, and let you jump the transcript to any exchange from a side pane (`/marks`).
 
-Status: early MVP. This build tracks exchanges, labels each new turn with a Haiku call (thread, gist, auto bookmarks) after the turn ends, and shows where you are above the prompt (`● Main › Sub · here #n/N`).
+Status: early MVP. This build tracks exchanges (rebuilt from the transcript JSONL on every load, so earlier turns, rewinds and compactions show correctly), labels each new turn with a Haiku call (thread, gist, auto bookmarks) after the turn ends, and shows where you are above the prompt (`● Main › Sub · here #n/N`).
 
 ## Load it
 

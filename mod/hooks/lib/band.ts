@@ -39,7 +39,7 @@ export type BandOptions = {
 /**
  * The band's line as coloured segments: `● Main › Sub · here #n/N ◇ · hint`.
  * `○ labelling… · hint` before the first label; undefined (draw nothing) with no exchanges.
- * N counts all exchanges until liveness lands (ticket 03).
+ * Callers pass the live view (liveView in chain.ts), so N counts live exchanges.
  */
 export const band = (file: ConversationFile | null, o: BandOptions): Segment[] | undefined => {
   const all = file?.exchanges ?? []

@@ -39,7 +39,7 @@ const TICK_MS = 500
 /** Hardcoded in the MVP; `label.model` stores this alias (the result names no model). */
 const MODEL = 'haiku'
 
-/** Exchange ids waiting for the labeller, conversation order. Lost on reload (ticket 03 rebuilds it). */
+/** Exchange ids waiting for the labeller, conversation order. Lost on reload; the transcript pass refills it (gap rule). */
 let queue: string[] = []
 /** A labeller call is in flight. */
 let busy = false
@@ -388,6 +388,7 @@ export const register: Register = on => {
         $.clock.after(TAIL_DELAY_MS, () => void guard($, 'tail', () => placePrompt($, e.uuid)))
       } else if (e.message.type === 'system' && e.message.name === 'compact_boundary') {
         // Decision 6: matched on name; everything before it is now out of the transcript's reach.
+        log($, `compact_boundary door=${e.door}`)
         if (transcript && transcript.sessionId === tracked?.file.sessionId) addBoundary(transcript.t, e.uuid)
         await publishChain($)
       } else if (e.door === 'response' && e.message.type === 'assistant' && !e.message.isMeta) {

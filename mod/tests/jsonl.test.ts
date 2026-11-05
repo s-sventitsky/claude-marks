@@ -43,6 +43,15 @@ describe('line splitter', () => {
     expect(s.end()).toEqual(['{"c":3}'])
   })
 
+  test('a line written in many small pieces comes out whole', () => {
+    const s = lineSplitter()
+    const line = '{"text":"' + 'x'.repeat(5000) + '"}'
+    const out: string[] = []
+    for (let i = 0; i < line.length; i += 7) out.push(...s.push(line.slice(i, i + 7)))
+    out.push(...s.push('\n'), ...s.end())
+    expect(out).toEqual([line])
+  })
+
   test('CRLF line ends are trimmed', () => {
     const s = lineSplitter()
     expect(s.push('{"a":1}\r\n{"b":2}\r\n')).toEqual(['{"a":1}', '{"b":2}'])
@@ -111,6 +120,13 @@ describe('ingest', () => {
     expect(t.rows.get('c2')).toEqual({ kind: 'command', text: '/plain' })
     expect(t.rows.get('a1')).toEqual({ kind: 'reply', text: '', tools: ['Bash ls -la'] })
     expect(t.rows.get('a2')).toEqual({ kind: 'reply', text: 'the answer', tools: [] })
+  })
+
+  test('a bare /command row from an older build (no origin) is a command, not a prompt', () => {
+    const t = read(J.userRow('c1', null, '/compact'), J.userRow('c2', 'c1', '/review src now'), J.human('u1', 'c2', '/not a command but typed'))
+    expect(t.rows.get('c1')).toEqual({ kind: 'command', text: '/compact' })
+    expect(t.rows.get('c2')).toEqual({ kind: 'command', text: '/review src now' })
+    expect(t.rows.get('u1')).toEqual({ kind: 'prompt', text: '/not a command but typed' })
   })
 
   test('rows nobody typed start a turn of their own; meta rows and summaries are links only', () => {

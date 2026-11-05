@@ -171,6 +171,15 @@ describe('tree liveness, pending and Unlabelled', () => {
     expect(lines(rows)).toEqual(['Unlabelled  3', ' 1    excerpt a', ' 2    excerpt b', ' 3 …  excerpt c'])
   })
 
+  test('a bookmarked exchange in the Unlabelled section draws its glyph dim, without a thread colour', () => {
+    const marked = ex('n1', null, '', [{ kind: 'manual', text: 'note' }])
+    const f = file([th('t1', 'Login')], [ex('a', 't1'), marked, ...nulls('n', 11).slice(1)])
+    const rows = layoutTree(f, { ...WIDE, unlabelled: nulls('n', 11).map(x => x.id) })
+    const row = rows.find(r => r.key === 'ex:n1') as TreeRow
+    expect(line(row)).toBe('  2 ◆  excerpt n1')
+    expect(row.segments.find(s => s.text === '◆')).toEqual({ text: '◆', dim: true })
+  })
+
   test('a trailing run the gap rule left is unlabelled, not pending', () => {
     const f = file([th('t1', 'Login')], [ex('a', 't1'), ...nulls('n', 11)])
     const rows = layoutTree(f, { ...WIDE, unlabelled: nulls('n', 11).map(x => x.id) })

@@ -68,6 +68,16 @@ export type ConversationFile = {
   }
 }
 
+/** The pane's state (ticket 04). Ticket 05 adds the reader view here. */
+export type PaneState = {
+  /** The exchange the cursor starts on when the pane opens. */
+  target: string | null
+  /** The exchange Enter last jumped to (this session); `/marks` reopens on it. */
+  lastJump: string | null
+  /** The footer line: why the last Enter did not jump. Cleared on open and on a jump. */
+  note: string | null
+}
+
 /** One entry of the $.store index, keyed by sessionId. The store never holds the data itself. */
 export type StoreIndexEntry = { file: string; updatedAt: string }
 
@@ -80,6 +90,8 @@ declare module 'claude-code' {
       here: string | null
       /** Why the labeller stopped for this conversation (the engine refused its call); null = running. */
       labellerOff: string | null
+      /** The pane: cursor target, last jump, footer note. */
+      pane: PaneState
     }
   }
 }

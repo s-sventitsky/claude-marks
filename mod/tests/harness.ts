@@ -18,6 +18,8 @@ export type World = {
   store: Map<string, unknown>
   /** The last value the plugin set under each $.state key (shaped values as stored). */
   state: Map<string, unknown>
+  /** What the plugin passed to $.command.register. */
+  commands: any[]
 }
 
 /** The conversation file the plugin last mirrored into $.state. */
@@ -35,6 +37,7 @@ export const world = (on: any, mock: any, opts: { sessionId?: string; files?: Re
     logs: [],
     store: new Map(),
     state: new Map(),
+    commands: [],
     sessionId: { current: opts.sessionId ?? 's1' },
   }
   mock.env(on, { CLAUDE_CONFIG_DIR: CONFIG })
@@ -54,6 +57,10 @@ export const world = (on: any, mock: any, opts: { sessionId?: string; files?: Re
   // Stands for the engine's own drawing beneath the plugins.
   on('ui.render', () => h('Box', null))
   on('session.id', () => ({ value: w.sessionId.current }))
+  on('command.register', (_: unknown, e: any) => {
+    w.commands.push(e)
+    return { value: { command: e.name } }
+  })
   on('turn.start', (_: unknown, e: any) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
   on('prompt.submit', (_: unknown, e: any) => ({ text: e.text }))

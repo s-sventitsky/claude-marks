@@ -7,6 +7,7 @@ import type { ConversationFile, StoreIndexEntry } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
 import { buildDynamic, settle } from './lib/labeller'
 import { emptyFile, parseFile } from './lib/model'
+import { openFromBand, registerMarksCommand, registerPane } from './pane'
 import { configDir, dataPath } from './lib/paths'
 import { RULES } from './lib/rules'
 import { promptText } from './lib/rows'
@@ -23,7 +24,7 @@ import {
   type Tracked,
 } from './lib/tracker'
 
-/** Bump the shape tag whenever ConversationFile changes type. */
+/** Bump the shape tag whenever ConversationFile changes type (and in pane.tsx, which repeats it). */
 const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
 const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
 const offA = atom({ plugin: 'marks', key: 'labellerOff' } as const, null)
@@ -248,6 +249,7 @@ export const register: Register = on => {
     lastStatus = null
     await guard($, 'session.start', async () => {
       config = await readConfig($)
+      await registerMarksCommand($)
       await sync($)
       showStatus($, tracked?.file ?? null)
     })
@@ -326,14 +328,18 @@ export const register: Register = on => {
       hint: off ? `labeller off: ${off}` : HINT,
     })
     if (!segments) return next(e)
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const fullscreen = e.viewport?.isFullscreen === true
+    // The whole band is one Button: a click opens the pane on the band's exchange (ticket 04).
     return (
       <Box flexDirection="row" width={e.props.bodyColumns}>
-        {segments.map(s => (
-          <Text color={s.color} bold={s.bold} dimColor={s.dim} wrap="truncate">
-            {s.text}
-          </Text>
-        ))}
+        <Button key="band" plain onPress={() => openFromBand($, file, { fullscreen, hereId })}>
+          {segments.map(s => (
+            <Text color={s.color} bold={s.bold} dimColor={s.dim} wrap="truncate">
+              {s.text}
+            </Text>
+          ))}
+        </Button>
       </Box>
     )
   })
@@ -348,4 +354,6 @@ export const register: Register = on => {
     noteOnScreen(e.requestId, e.props.onScreen)
     return next(e)
   })
+
+  registerPane(on)
 }

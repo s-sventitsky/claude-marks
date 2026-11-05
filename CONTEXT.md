@@ -12,6 +12,7 @@ A Claude Code mod that organizes the current conversation for navigation.
 - **Thread** — a labelled group of exchanges about one topic. Threads form a tree exactly one level deep:
   - **Main thread** — a top-level topic of the conversation.
   - **Sub-thread** — a digression inside a main thread (e.g. exploring one of several points a reply raised). Returning to the main theme returns to the main thread.
+- **Family** — a main thread together with its sub-threads, and their exchanges in conversation order. The tree shows one family per main thread; the reader steps through a family exchange by exchange.
 - **Labeller** — the component that assigns each new exchange to a thread and flags auto-bookmarks.
 - **Bookmark** — a highlighted exchange inside a thread, or (manual only) one of Claude's messages in it. Kinds:
   - **Manual bookmark** — created by the user (`/mark` or clicking a glyph).

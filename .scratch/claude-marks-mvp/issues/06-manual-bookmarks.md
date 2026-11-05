@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 (Reader)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] `/mark` with no target bookmarks Claude's latest reply text block in the latest exchange (`row` = that block's uuid). `/mark #n` bookmarks exchange n on its prompt row. The rest of the line is the note; without one the text is ~80 chars of the message, else the gist. One manual bookmark per exchange, so a second `/mark` replaces it. It replies with one line like `◆ #14 "chose JSON schema"`; a bad `#n` prints usage.
 - [x] In the reader, `m` opens a `Select` of the exchange's reply text blocks (first ~60 chars each) plus "the whole exchange". The entry holding the bookmark shows ◆ and choosing it removes the bookmark. Choosing another entry moves the bookmark there and asks for an optional note (Enter on empty means none).

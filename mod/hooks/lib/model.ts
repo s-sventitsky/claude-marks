@@ -1,5 +1,5 @@
 // Pure operations on the conversation data file. No `$`, no engine values.
-import type { ConversationFile, Exchange } from '../../types/index'
+import type { ConversationFile, Exchange, Thread } from '../../types/index'
 
 export const EXCERPT_MAX = 80
 
@@ -43,6 +43,20 @@ export const foldPrompt = (file: ConversationFile, exchangeId: string, uuid: str
   const exchanges = file.exchanges.slice()
   exchanges[i] = { ...ex, prompts: [...ex.prompts, uuid] }
   return { ...file, exchanges }
+}
+
+/**
+ * The current thread: the thread of the latest labelled exchange, or of the
+ * latest one before `beforeId` when given. Undefined when there is none.
+ * Liveness (ticket 03) narrows "latest" to live exchanges.
+ */
+export const currentThread = (file: ConversationFile, beforeId?: string): Thread | undefined => {
+  const end = beforeId === undefined ? file.exchanges.length : file.exchanges.findIndex(x => x.id === beforeId)
+  for (let i = (end < 0 ? file.exchanges.length : end) - 1; i >= 0; i--) {
+    const id = file.exchanges[i]?.thread?.id
+    if (id) return file.threads.find(t => t.id === id)
+  }
+  return undefined
 }
 
 /**

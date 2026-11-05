@@ -184,16 +184,16 @@ describe('conversation switches', () => {
 })
 
 describe('band and status line', () => {
-  test('the band draws nothing with no exchanges, then #n/N for the latest', async ($, on) => {
+  test('the band draws nothing with no exchanges, then labelling… until a label lands', async ($, on) => {
     mock.clock(on)
     const w = world(on, mock)
     await $.session.start(SESSION_START)
     const ui = await $.ui.mount(BAND as any)
-    expect(await ui.find({ type: 'Text', text: /#/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text' })).toBeUndefined()
     await $.session.append(prompt('u1', 'one') as any)
     await $.session.append(prompt('u2', 'two') as any)
     await ui.redraw()
-    expect((await ui.find({ type: 'Text', text: /#/ }))?.text).toBe('#2/2')
+    expect((await ui.findAll({ type: 'Text' })).map((t: any) => t.text).join('')).toBe('○ labelling… · click or /marks')
     await ui.unmount()
   })
 

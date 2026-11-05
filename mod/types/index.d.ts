@@ -76,6 +76,10 @@ declare module 'claude-code' {
     marks: {
       /** The loaded conversation's data file, mirrored. null before the first load. */
       conv: Shaped<ConversationFile | null>
+      /** Fullscreen: the exchange at the top of the viewport (its id); null = the latest. */
+      here: string | null
+      /** Why the labeller stopped for this conversation (the engine refused its call); null = running. */
+      labellerOff: string | null
     }
   }
 }

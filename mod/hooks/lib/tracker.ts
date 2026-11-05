@@ -82,7 +82,23 @@ export const onQueued = (t: Tracked, uuid: string): Tracked => {
   return { ...next, turn: { ...next.turn, typed: rest } }
 }
 
-export const onTurnStart = (t: Tracked): Tracked => ({ ...t, turn: { ...t.turn, running: true } })
+/** The exchange a transcript row belongs to: a prompt it folded, its anchor, or one of its reply text rows. */
+export const exchangeOfRow = (t: Tracked, uuid: string): string | undefined =>
+  t.file.exchanges.find(x => x.prompts.includes(uuid) || x.id === uuid)?.id ??
+  Object.keys(t.index).find(id => t.index[id]?.replies.some(r => r.uuid === uuid))
+
+/** Of the rows on screen, the exchange that comes first in the conversation. */
+export const topmost = (t: Tracked, rows: Iterable<string>): string | undefined => {
+  let best: { id: string; at: number } | undefined
+  for (const row of rows) {
+    const id = exchangeOfRow(t, row)
+    const at = id === undefined ? -1 : t.file.exchanges.findIndex(x => x.id === id)
+    if (id !== undefined && at >= 0 && (!best || at < best.at)) best = { id, at }
+  }
+  return best?.id
+}
+
+export const onTurnStart =(t: Tracked): Tracked => ({ ...t, turn: { ...t.turn, running: true } })
 
 export const onTurnComplete = (t: Tracked): Tracked => ({ ...t, turn: idleTurn() })
 

@@ -2,7 +2,7 @@
 
 A Claude Code mod that organizes the current conversation for navigation. Each prompt you type becomes an exchange in a per-conversation data file. Later builds label exchanges into a one-level thread tree with bookmarks, and let you jump the transcript to any exchange from a side pane (`/marks`).
 
-Status: early MVP. This build tracks exchanges and shows `#n/N` above the prompt.
+Status: early MVP. This build tracks exchanges, labels each new turn with a Haiku call (thread, gist, auto bookmarks) after the turn ends, and shows where you are above the prompt (`● Main › Sub · here #n/N`).
 
 ## Load it
 
@@ -14,4 +14,4 @@ Data lives in `<config>/claude-marks/<sessionId>.json`, where `<config>` is `CLA
 
 ## Develop
 
-From the repository root: `npm run check` runs `claude plugin validate mod`, `tsc -p mod` and `claude plugin test mod`. Without a session that has loaded the mod, run `npm run sync-types` first to copy the engine types into `mod/.claude-plugin/types/`.
+From the repository root: `npm run check` checks that `mod/hooks/lib/rules.ts` still matches the labeller prompt (`npm run rules` regenerates it), then runs `claude plugin validate mod`, `tsc -p mod` and `claude plugin test mod`. Without a session that has loaded the mod, run `npm run sync-types` first to copy the engine types into `mod/.claude-plugin/types/`.

@@ -7,7 +7,8 @@
     "validate": "claude plugin validate mod",
     "typecheck": "tsc -p mod",
     "test": "claude plugin test mod",
-    "check": "npm run validate && npm run typecheck && npm test"
+    "rules": "node scripts/rules.mjs",
+    "check": "node scripts/rules.mjs --check && npm run validate && npm run typecheck && npm test"
   },
   "devDependencies": {
     "typescript": "5.9.3"

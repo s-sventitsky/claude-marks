@@ -4,17 +4,45 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ConversationFile, StoreIndexEntry } from '../types/index'
-import { bandLine, statusLine } from './lib/band'
+import { HINT, band, statusLine } from './lib/band'
+import { buildDynamic, settle } from './lib/labeller'
 import { emptyFile, parseFile } from './lib/model'
 import { configDir, dataPath } from './lib/paths'
+import { RULES } from './lib/rules'
 import { promptText } from './lib/rows'
-import { onPrompt, onQueued, onResponse, onSubmit, onTurnComplete, onTurnStart, start, type ResponseBlock, type Tracked } from './lib/tracker'
+import {
+  onPrompt,
+  onQueued,
+  onResponse,
+  onSubmit,
+  onTurnComplete,
+  onTurnStart,
+  start,
+  topmost,
+  type ResponseBlock,
+  type Tracked,
+} from './lib/tracker'
 
 /** Bump the shape tag whenever ConversationFile changes type. */
 const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
+const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
+const offA = atom({ plugin: 'marks', key: 'labellerOff' } as const, null)
 
 const FLUSH_MS = 1000
 const SWITCH_CHECK_MS = 250
+/** The labeller drain and the `here` check share one timer. */
+const TICK_MS = 500
+/** Hardcoded in the MVP; `label.model` stores this alias (the result names no model). */
+const MODEL = 'haiku'
+
+/** Exchange ids waiting for the labeller, conversation order. Lost on reload (ticket 03 rebuilds it). */
+let queue: string[] = []
+/** A labeller call is in flight. */
+let busy = false
+let tickTimer: Timer | null = null
+/** Transcript rows (prompt and reply uuids) the render hooks last saw on screen. */
+const onScreen = new Set<string>()
+let lastHere: string | null = null
 
 let tracked: Tracked | null = null
 let config: string | undefined
@@ -91,9 +119,18 @@ const sync = async ($: EngineInterface): Promise<void> => {
   while (switching) await switching
   if (tracked && tracked.file.sessionId === id) return
   switching = (async () => {
+    const switched = tracked !== null
     if (tracked) await flush($)
     const { file, fromState } = await loadFile($, id)
     tracked = start(id, file)
+    if (switched) {
+      // The old conversation's queue, screen rows and labeller state go with it.
+      queue = []
+      onScreen.clear()
+      lastHere = null
+      await update($, hereA, () => null)
+      await update($, offA, () => null)
+    }
     await publish($)
     // Back from $.state after a reload: a debounced write may have died with the old module.
     if (fromState && file.exchanges.length) scheduleFlush($)
@@ -132,6 +169,80 @@ const guard = async ($: EngineInterface, what: string, work: () => Promise<void>
   }
 }
 
+const reasonOf = (err: unknown) => (err instanceof Error ? err.message : String(err))
+
+/**
+ * One labeller step, from the timer: the head of the queue gets one call, and its
+ * outcome lands in the data file. Never runs inside a turn's dispatch, and never
+ * two at once (`busy`), so each call sees the labels before it.
+ */
+const drain = async ($: EngineInterface) => {
+  if (busy) return
+  busy = true
+  try {
+    await sync($) // decision 2: a switch is also looked for on the timer tick
+    if (await read($, offA)) return
+    const t = tracked
+    const id = queue[0]
+    if (!t || id === undefined) return
+    const ex = t.file.exchanges.find(x => x.id === id)
+    if (!ex || ex.label.status === 'done') {
+      queue.shift()
+      return
+    }
+    const sessionId = t.file.sessionId
+    let result
+    try {
+      result = await $.model.complete({
+        model: MODEL,
+        effort: 'low',
+        prompt: [{ text: RULES, cache: true }, { text: buildDynamic(t.file, t.index, id) }],
+        maxTokens: 400,
+        timeoutMs: 15_000,
+      })
+    } catch (err) {
+      // The engine refused to send it (a blocked model): stop for this conversation.
+      const reason = reasonOf(err)
+      log($, `labeller off: ${reason}`)
+      await update($, offA, () => reason)
+      return
+    }
+    // A switch while the call ran cleared the queue; this result belongs to no one.
+    if (tracked?.file.sessionId !== sessionId || queue[0] !== id) return
+    if (!result.isAnswered) log($, `labeller ${id}: ${result.reason}`)
+    let retry = false
+    await commit($, cur => {
+      const s = settle(cur.file, id, result, MODEL)
+      retry = s.retry
+      return { ...cur, file: s.file }
+    })
+    if (!retry) queue.shift()
+  } finally {
+    busy = false
+  }
+}
+
+/** Fullscreen `here`: the topmost exchange the render hooks saw on screen, into $.state on change. */
+const updateHere = async ($: EngineInterface) => {
+  if (!tracked || !onScreen.size) return
+  const id = topmost(tracked, onScreen) ?? null
+  if (id === null || id === lastHere) return
+  lastHere = id
+  await update($, hereA, () => id)
+}
+
+const tick = ($: EngineInterface) => {
+  void guard($, 'here', () => updateHere($))
+  void guard($, 'labeller', () => drain($))
+}
+
+/** Render hooks note which rows are on screen; `null` is off screen, absent says nothing. */
+const noteOnScreen = (requestId: string, seen: unknown) => {
+  if (requestId === 'placeholder') return
+  if (seen) onScreen.add(requestId)
+  else if (seen === null) onScreen.delete(requestId)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     lastStatus = null
@@ -140,6 +251,9 @@ export const register: Register = on => {
       await sync($)
       showStatus($, tracked?.file ?? null)
     })
+    // session.start can run again without a reload (in-session /resume): one timer only.
+    tickTimer?.cancel()
+    tickTimer = $.clock.every(TICK_MS, () => tick($))
     return next(e)
   })
 
@@ -189,19 +303,49 @@ export const register: Register = on => {
 
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
-    if (e.agentId === undefined) await guard($, 'turn.complete', () => commit($, onTurnComplete))
+    if (e.agentId !== undefined) return r
+    // Queue the turn's exchange for the labeller; the timer makes the call, never this dispatch.
+    await guard($, 'turn.complete', () =>
+      commit($, t => {
+        const id = t.turn.exchangeId
+        if (id && !queue.includes(id)) queue.push(id)
+        return onTurnComplete(t)
+      }),
+    )
     return r
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
-    const line = bandLine(await read($, conv))
-    if (!line) return next(e)
+    const file = await read($, conv)
+    const hereId = await read($, hereA)
+    const off = await read($, offA)
+    const segments = band(file, {
+      fullscreen: e.viewport?.isFullscreen === true,
+      hereId,
+      hint: off ? `labeller off: ${off}` : HINT,
+    })
+    if (!segments) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="row" width={e.props.bodyColumns}>
-        <Text>{line}</Text>
+        {segments.map(s => (
+          <Text color={s.color} bold={s.bold} dimColor={s.dim} wrap="truncate">
+            {s.text}
+          </Text>
+        ))}
       </Box>
     )
+  })
+
+  // `here`: these only note which rows are on screen; the timer does the rest.
+  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    noteOnScreen(e.requestId, e.props.onScreen)
+    return next(e)
+  })
+
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    noteOnScreen(e.requestId, e.props.onScreen)
+    return next(e)
   })
 }

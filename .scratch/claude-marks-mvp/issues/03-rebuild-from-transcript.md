@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Track exchanges into the conversation file), 02 (Label new turns)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] The transcript path is found from the project slug, with a scan of the projects folder as the fallback.
 - [x] Files of 4 MiB or less are read with one `$.fs.read`. Larger files stream through `$.process.spawn`: `cat` on macOS and Linux, Git for Windows' `cat.exe` on Windows, `cmd /c type` as the last fallback. Lines are prefiltered by substring before `JSON.parse`. The pass runs off the hook path.

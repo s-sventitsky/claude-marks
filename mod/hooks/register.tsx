@@ -1,4 +1,5 @@
-// The only hooks module: thin adapters between engine events and the pure code in ./lib.
+// The hooks module's entry: wiring between engine events and the pure code in ./lib, with
+// thin adapters beside it (persist, markers, pass, labeller, pane, mode).
 // Module variables hold caches only (lost on hot reload); $.state holds the view model;
 // the data file on disk is the record.
 import { atom, memberOf, read, update } from 'claude-code'

@@ -78,6 +78,13 @@ export type PaneState = {
   note: string | null
 }
 
+/**
+ * Inline marker on one exchange's prompt row (ticket 07), a $.state family member keyed by
+ * the exchange id. `color` is a theme key; `divider` is the text between the dashes
+ * (`label`, or `└ label` for a sub-thread); `glyph` replaces the prompt's `>`.
+ */
+export type Marker = { color: string; divider?: string; glyph?: string }
+
 /** One entry of the $.store index, keyed by sessionId. The store never holds the data itself. */
 export type StoreIndexEntry = { file: string; updatedAt: string }
 
@@ -92,6 +99,8 @@ declare module 'claude-code' {
       labellerOff: string | null
       /** The pane: cursor target, last jump, footer note. */
       pane: PaneState
+      /** Inline marker per prompt row (exchange id); null = none. Written only when it changes. */
+      marker: StateFamily<Marker | null>
     }
   }
 }

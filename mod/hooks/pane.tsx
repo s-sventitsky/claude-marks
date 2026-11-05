@@ -1,9 +1,11 @@
-// The pane (tickets 04, 05): `/marks`, the tree drawn as Buttons, Enter's jump, and the
-// reader on one exchange. Thin adapters over lib/tree, lib/reader and lib/pane;
-// register.tsx wires them in with registerPane(on, rowsOf).
+// The pane (tickets 04, 05, 06): `/marks`, the tree drawn as Buttons, Enter's jump, and the
+// reader on one exchange with its bookmark menu. Thin adapters over lib/tree, lib/reader,
+// lib/pane and lib/bookmarks; register.tsx wires them in with registerPane(on, rowsOf).
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
-import type { ChainView, ConversationFile, Exchange, PaneState, PaneView } from '../types/index'
+import type { ChainView, ConversationFile, Exchange, PaneState, PaneView, ReaderMenu } from '../types/index'
+import { GLYPH } from './lib/band'
+import { anchorOf, heldValue, markMenu, menuKey, noteKey } from './lib/bookmarks'
 import { isLive, isReachable } from './lib/chain'
 import {
   PANE_ID,
@@ -95,19 +97,30 @@ async function showTree($: EngineInterface, id: string) {
   await update($, paneA, p => ({ ...p, target: id, view: TREE }))
 }
 
+/** The reader's bookmark menu (ticket 06): open (`pick`), the note field (`note`), or closed; the ring follows. */
+async function showMenu($: EngineInterface, id: string, menu: ReaderMenu | undefined) {
+  const view: PaneView = menu ? { kind: 'reader', id, menu } : { kind: 'reader', id }
+  await update($, paneA, p => ({ ...p, view }))
+  await focusOn($, menu === 'pick' ? menuKey(id) : menu === 'note' ? noteKey(id) : 'key:m')
+}
+
 /**
  * Enter on a row, or `g` in the reader: scroll the transcript to the anchor inside the
  * press (a transcript row moves only while answering the person's input), then close
  * and remember. Unreachable, the main screen, or a denied jump: the reader instead.
+ * `row`: a manual bookmark's reply row (ticket 06), tried first; denied, the prompt row.
  */
-async function enter($: EngineInterface, id: string, seen: boolean | undefined) {
+async function enter($: EngineInterface, id: string, seen: boolean | undefined, row?: string) {
   const fullscreen = await readMode($, seen)
   const file = await read($, conv)
   const act = file && enterAction(file, id, { fullscreen, isReachable: reachOf(await read($, chainA), true) })
   if (!act) return
   // The reader works out the reason itself (lib/reader), from the same facts.
   if (act.kind === 'reader') return showReader($, act.id)
-  const r = await $.ui.scroll({ to: { requestId: act.to }, block: 'start' }).catch(err => ({ deny: reasonOf(err) }))
+  const scroll = (to: string) => $.ui.scroll({ to: { requestId: to }, block: 'start' }).catch(err => ({ deny: reasonOf(err) }))
+  let r = row && row !== act.to ? await scroll(row) : { deny: undefined as string | undefined }
+  if (row && row !== act.to && r.deny) log($, `jump to reply row ${row}: ${r.deny}; the prompt row instead`)
+  if (!row || row === act.to || r.deny) r = await scroll(act.to)
   const out = afterJump(r)
   if (!out.close) return showReader($, act.to, out.note)
   await $.ui.close({ id: PANE_ID }).catch(err => log($, `close after jump: ${reasonOf(err)}`))
@@ -136,18 +149,21 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     return {}
   })
 
-  // Esc (closeOnEscape) and the × mark in the reader go back to the tree, the pane kept open.
+  // Esc (closeOnEscape) and the × mark in the reader go back to the tree, the pane kept open;
+  // in the reader's bookmark menu, back to the reader.
   on('ui.close', async ($, e, next) => {
     if (e.id !== PANE_ID) return next(e)
     const view = paneView(await read($, paneA))
-    if (onPaneClose(view, e.origin.kind) === 'pass' || view.kind !== 'reader') return next(e)
-    await showTree($, view.id)
+    const act = onPaneClose(view, e.origin.kind)
+    if (act === 'pass' || view.kind !== 'reader') return next(e)
+    if (act === 'to-reader') await update($, paneA, p => ({ ...p, view: { kind: 'reader', id: view.id } as PaneView }))
+    else await showTree($, view.id)
     // Esc already handed the keys to the prompt; once the refusal lands, take them back.
     // An open id is not re-created: open re-delivers the focus request.
     $.clock.after(RETAKE_MS, async () => {
       const r = await $.ui.open({ id: PANE_ID, title: 'marks', focus: true, closeOnEscape: true, rows: PANE_ROWS }).catch(err => ({ isPlaced: false, reason: reasonOf(err) }))
-      if (!r.isPlaced) log($, `back to tree: not placed (${'reason' in r ? r.reason : ''})`)
-      await focusOn($, `ex:${view.id}`)
+      if (!r.isPlaced) log($, `back to ${act === 'to-reader' ? 'reader' : 'tree'}: not placed (${'reason' in r ? r.reason : ''})`)
+      await focusOn($, act === 'to-reader' ? 'key:m' : `ex:${view.id}`)
     })
     // Answering without next keeps the pane open (person and plugin closes, never unload).
     return { value: undefined }
@@ -165,7 +181,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     const pane = await read($, paneA)
     const hereId = await read($, hereA)
     const chain = await read($, chainA)
-    const { Box, Text, Button, Markdown } = $.ui.resolve(e)
+    const { Box, Text, Button, Markdown, Select, Input } = $.ui.resolve(e)
     noteMode(e.viewport?.isFullscreen)
     const fullscreen = await readMode($, e.viewport?.isFullscreen)
     const W = e.props.bodyColumns
@@ -203,12 +219,16 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     // A reader whose exchange is gone (a rewind hid it) falls back to the tree.
     if (m) {
       const rule = <Text dimColor>{'─'.repeat(Math.max(1, W))}</Text>
+      const x = file?.exchanges.find(y => y.id === m.id)
+      const rows = rowsOf(m.id)
+      const menu = view.kind === 'reader' ? view.menu : undefined
       return (
         <Box flexDirection="column">
           {keyLine(readerKeys(m), {
             j: () => m.next && showReader($, m.next),
             k: () => m.prev && showReader($, m.prev),
             g: () => enter($, m.id, fullscreen),
+            m: () => showMenu($, m.id, 'pick'),
           })}
           <Box flexDirection="row">
             {m.path.map(s => (
@@ -219,12 +239,33 @@ export function registerPane(on: On, rowsOf: RowsOf) {
             <Text dimColor wrap="truncate">{` · #${m.n} · ${m.i} of ${m.k} in thread`}</Text>
           </Box>
           {m.reason ? <Text color="warning">{m.reason}</Text> : null}
-          {m.bookmarks.map(b => (
-            <Box flexDirection="row">
-              <Text color={b.color}>{`${b.glyph} `}</Text>
-              <Text dimColor>{b.text}</Text>
-            </Box>
-          ))}
+          {m.bookmarks.map(b =>
+            // The manual bookmark's line jumps to its row (prompt row when that can't be found).
+            b.glyph === GLYPH.manual && m.canJump && x ? (
+              <Button key="mark:jump" plain onPress={() => enter($, m.id, fullscreen, anchorOf(x, rows))}>
+                <Text color={b.color}>{`${b.glyph} `}</Text>
+                <Text dimColor>{b.text}</Text>
+              </Button>
+            ) : (
+              <Box flexDirection="row">
+                <Text color={b.color}>{`${b.glyph} `}</Text>
+                <Text dimColor>{b.text}</Text>
+              </Box>
+            ),
+          )}
+          {/* The menu and the note change the file in register.tsx's ui.select / ui.input hooks, before these handlers. */}
+          {menu === 'pick' && x ? (
+            <Select
+              key={menuKey(m.id)}
+              label="bookmark"
+              options={markMenu(x, rows)}
+              autoFocus
+              onSelect={v => void showMenu($, m.id, v === heldValue(x, rows) ? undefined : 'note')}
+            />
+          ) : null}
+          {menu === 'note' ? (
+            <Input key={noteKey(m.id)} label="note" placeholder="Enter for none" submitLabel="save" autoFocus onSubmit={() => void showMenu($, m.id, undefined)} />
+          ) : null}
           {rule}
           {m.prompts.map(p => (
             <Box flexDirection="row">

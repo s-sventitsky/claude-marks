@@ -189,7 +189,7 @@ describe('the reader', () => {
     expect(await header(ui)).toBe(' · #2 · 1 of 1 in thread')
   })
 
-  test('m is drawn and inert (ticket 06); n is unbound', async ($, on) => {
+  test('m is drawn and live (ticket 06); n is unbound', async ($, on) => {
     await setup($, on)
     await $.command.run(run() as any)
     const ui = await $.ui.mount(PANE as any)
@@ -197,7 +197,7 @@ describe('the reader', () => {
     await ui.redraw()
     const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.props.hotkey)
     expect(keys).toEqual(['j', 'k', 'g', 'm'])
-    expect((await ui.find({ type: 'Button', key: 'key:m' }))?.props.dimColor).toBe(true)
+    expect((await ui.find({ type: 'Button', key: 'key:m' }))?.props.dimColor).toBeUndefined()
   })
 
   test('/marks while the reader shows opens the tree again', async ($, on) => {

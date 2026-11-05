@@ -88,7 +88,13 @@ export type ChainView = {
  * What the pane shows: the tree, or the reader on one exchange (ticket 05).
  * `deny`: the engine refused the last jump to it (`Jump denied: …`); dropped on j/k.
  */
-export type PaneView = { kind: 'tree' } | { kind: 'reader'; id: string; deny?: string }
+export type PaneView = { kind: 'tree' } | { kind: 'reader'; id: string; deny?: string; menu?: ReaderMenu }
+
+/**
+ * The reader's bookmark menu (ticket 06): `pick` shows the `Select` of reply blocks and
+ * the whole exchange; `note` the optional note `Input` after a move. Absent: none.
+ */
+export type ReaderMenu = 'pick' | 'note'
 
 /**
  * The pane's state (tickets 04, 05). No shape tag: a value stored by an older build

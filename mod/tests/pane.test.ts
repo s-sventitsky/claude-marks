@@ -37,6 +37,12 @@ describe('Enter on a row', () => {
     expect(REASON.compacted).toBe('Before the last compaction: not on screen, so the reader shows it.')
   })
 
+  test('a bookmarked exchange still jumps to its prompt row, not the bookmark row (ticket 06)', () => {
+    const f = file('a')
+    const marked = { ...f, exchanges: [{ ...ex('a'), bookmarks: [{ kind: 'manual' as const, row: 'r1', text: 'n' }] }] }
+    expect(enterAction(marked, 'a', { fullscreen: true })).toEqual({ kind: 'jump', to: 'a' })
+  })
+
   test('an exchange no longer in the file does nothing', () => {
     expect(enterAction(file('a'), 'gone', { fullscreen: true })).toBeUndefined()
   })
@@ -138,15 +144,24 @@ describe('the pane view', () => {
     expect(readTarget(rows, 'ex:gone', undefined)).toBeUndefined()
   })
 
-  test('the reader draws j, k, g, m and Esc; inert ones are disabled; m is reserved for ticket 06; n is unbound', () => {
+  test('the reader draws j, k, g, m and Esc; inert ones are disabled; m always acts (unreachable and main screen too); n is unbound', () => {
     const keys = readerKeys({ prev: undefined, next: 'b', canJump: false })
     expect(keys.map(k => [k.label, k.hotkey, k.enabled])).toEqual([
       ['next', 'j', true],
       ['previous', 'k', false],
       ['jump', 'g', false],
-      ['bookmark', 'm', false],
+      ['bookmark', 'm', true],
       ['Esc back', undefined, true],
     ])
-    expect(readerKeys({ prev: 'a', next: undefined, canJump: true }).filter(k => k.enabled).map(k => k.hotkey)).toEqual(['k', 'g', undefined])
+    expect(readerKeys({ prev: 'a', next: undefined, canJump: true }).filter(k => k.enabled).map(k => k.hotkey)).toEqual(['k', 'g', 'm', undefined])
+  })
+
+  test("the reader's bookmark menu (ticket 06): stored and read back; Esc in it goes back to the reader", () => {
+    expect(paneView({ view: { kind: 'reader', id: 'a', menu: 'pick' } })).toEqual({ kind: 'reader', id: 'a', menu: 'pick' })
+    expect(paneView({ view: { kind: 'reader', id: 'a', menu: 'note' } })).toEqual({ kind: 'reader', id: 'a', menu: 'note' })
+    expect(paneView({ view: { kind: 'reader', id: 'a', menu: 'junk' } })).toEqual({ kind: 'reader', id: 'a' })
+    expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'pick' }, 'person')).toBe('to-reader')
+    expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'note' }, 'person')).toBe('to-reader')
+    expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'note' }, 'unload')).toBe('pass')
   })
 })

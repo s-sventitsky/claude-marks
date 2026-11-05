@@ -70,13 +70,13 @@ export const treeKeys = (o: { fullscreen: boolean | undefined }): KeyHint[] => [
 
 /**
  * The reader's keys, each drawn always: `j`/`k` step through the family, `g` jumps,
- * `m` is reserved for the bookmark menu (ticket 06), Esc goes back to the tree. `n` stays unbound.
+ * `m` opens the bookmark menu (ticket 06; it acts on any shown exchange), Esc goes back to the tree. `n` stays unbound.
  */
 export const readerKeys = (m: { prev?: string; next?: string; canJump: boolean }): KeyHint[] => [
   { label: 'next', hotkey: 'j', enabled: m.next !== undefined },
   { label: 'previous', hotkey: 'k', enabled: m.prev !== undefined },
   { label: 'jump', hotkey: 'g', enabled: m.canJump },
-  { label: 'bookmark', hotkey: 'm', enabled: false },
+  { label: 'bookmark', hotkey: 'm', enabled: true },
   { label: 'Esc back', enabled: true },
 ]
 
@@ -84,17 +84,22 @@ export const readerKeys = (m: { prev?: string; next?: string; canJump: boolean }
 export const paneView = (pane: unknown): PaneView => {
   const v = pane && typeof pane === 'object' ? (pane as { view?: unknown }).view : undefined
   if (!v || typeof v !== 'object') return { kind: 'tree' }
-  const r = v as { kind?: unknown; id?: unknown; deny?: unknown }
+  const r = v as { kind?: unknown; id?: unknown; deny?: unknown; menu?: unknown }
   if (r.kind !== 'reader' || typeof r.id !== 'string') return { kind: 'tree' }
-  return typeof r.deny === 'string' ? { kind: 'reader', id: r.id, deny: r.deny } : { kind: 'reader', id: r.id }
+  return {
+    kind: 'reader',
+    id: r.id,
+    ...(typeof r.deny === 'string' ? { deny: r.deny } : {}),
+    ...(r.menu === 'pick' || r.menu === 'note' ? { menu: r.menu } : {}),
+  }
 }
 
 /**
  * `ui.close` on the pane: the person's close (Esc, the × mark) while the reader shows is
- * refused and the tree comes back; any other close goes through.
+ * refused and the tree comes back (the reader, from its bookmark menu); any other close goes through.
  */
-export const onPaneClose = (view: PaneView, origin: 'plugin' | 'person' | 'unload'): 'to-tree' | 'pass' =>
-  view.kind === 'reader' && origin === 'person' ? 'to-tree' : 'pass'
+export const onPaneClose = (view: PaneView, origin: 'plugin' | 'person' | 'unload'): 'to-tree' | 'to-reader' | 'pass' =>
+  view.kind !== 'reader' || origin !== 'person' ? 'pass' : view.menu ? 'to-reader' : 'to-tree'
 
 /**
  * `p` in the tree: the exchange of the focused row (a header's is its first exchange).

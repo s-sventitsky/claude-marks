@@ -5,12 +5,14 @@ import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ChainView, ConversationFile, StoreIndexEntry } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
-import { gapRun, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { gapRun, isLive, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
 import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jsonl'
 import { buildDynamic, settle } from './lib/labeller'
 import { dividerLine, markers } from './lib/markers'
 import { emptyFile, parseFile } from './lib/model'
 import { fixMode, noteMode, readMode } from './mode'
+import { NO_EXCHANGE, menuTarget, noteManual, pickMark, runMark } from './lib/bookmarks'
+import { PANE_ID } from './lib/pane'
 import { openFromBand, registerMarksCommand, registerPane } from './pane'
 import { configDir, dataPath } from './lib/paths'
 import { RULES } from './lib/rules'
@@ -223,6 +225,18 @@ const commit = async ($: EngineInterface, fn: (t: Tracked) => Tracked, check = f
   }
 }
 
+/** Ticket 06: a bookmark change to the loaded conversation's file, mirrored and written back as every change. */
+const editFile = ($: EngineInterface, fn: (file: ConversationFile) => ConversationFile) =>
+  commit($, t => {
+    const file = fn(t.file)
+    return file === t.file ? t : { ...t, file }
+  })
+
+const isoNow = async ($: EngineInterface) => new Date(await $.clock.now()).toISOString()
+
+/** The row index entry of an exchange (prompt texts, reply text rows). */
+const rowsOf = (id: string) => tracked?.index[id]
+
 const guard = async ($: EngineInterface, what: string, work: () => Promise<void>) => {
   try {
     await work()
@@ -394,6 +408,10 @@ export const register: Register = on => {
     await guard($, 'session.start', async () => {
       config = await readConfig($)
       await registerMarksCommand($)
+      // Ticket 06. `immediate`: it works while a turn runs (decision 11).
+      await $.command
+        .register({ name: 'mark', description: 'Bookmark the latest reply, or exchange #n: /mark [#n] [note]', immediate: true })
+        .catch(err => log($, `register /mark: ${reasonOf(err)}`))
       await sync($)
       showStatus($, tracked?.file ?? null)
     })
@@ -537,5 +555,39 @@ export const register: Register = on => {
     return next(e)
   })
 
-  registerPane(on, id => tracked?.index[id])
+  // Ticket 06: `/mark` and the reader's bookmark menu. The file changes here, where `commit`
+  // is: past an import `$` may only flow into function declarations. Returns no text: a
+  // command's text is a transcript row the model reads, so the line goes to a toast (decision 9).
+  on('command.run', { command: 'mark' }, async ($, e) => {
+    await fixMode($, e.presentation?.isFullscreen)
+    await sync($)
+    const at = await isoNow($)
+    // No conversation loaded: the edit never runs, so nothing to bookmark.
+    let say = NO_EXCHANGE
+    await editFile($, file => {
+      const r = runMark(file, e.args, { rowsOf, isLive: x => isLive(chainView, x.id) }, at)
+      say = r.say
+      return r.file
+    })
+    $.ui.toast(say)
+    return {}
+  })
+
+  // A pick in the reader's `m` menu, or its note, lands in the file before the pane's own
+  // handler (the bottom of the chain) switches the view.
+  on('ui.select', { component: 'Pane', requestId: PANE_ID }, async ($, e, next) => {
+    const m = menuTarget(e.element)
+    if (m?.kind === 'pick') {
+      const at = await isoNow($)
+      await guard($, 'bookmark menu', () => editFile($, f => pickMark(f, m.id, e.value, rowsOf(m.id), at).file))
+    }
+    return next(e)
+  })
+  on('ui.input', { component: 'Pane', requestId: PANE_ID }, async ($, e, next) => {
+    const m = menuTarget(e.element)
+    if (m?.kind === 'note' && e.kind === 'submit') await guard($, 'bookmark note', () => editFile($, f => noteManual(f, m.id, e.value)))
+    return next(e)
+  })
+
+  registerPane(on, rowsOf)
 }

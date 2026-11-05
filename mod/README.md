@@ -4,6 +4,8 @@ A Claude Code mod that organizes the current conversation for navigation. Each p
 
 Status: early MVP. This build tracks exchanges (rebuilt from the transcript JSONL on every load, so earlier turns, rewinds and compactions show correctly), labels each new turn with a Haiku call (thread, gist, auto bookmarks) after the turn ends, and shows where you are above the prompt (`● Main › Sub · here #n/N`).
 
+`/mark [#n] [note]` bookmarks Claude's latest reply (or exchange #n, as numbered in the tree) with ◆. In the pane's reader, `m` picks which reply block of the exchange holds the bookmark, or removes it.
+
 ## Load it
 
 ```sh

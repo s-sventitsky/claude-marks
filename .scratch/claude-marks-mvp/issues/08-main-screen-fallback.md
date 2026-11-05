@@ -10,7 +10,7 @@
 - [x] On the main screen nothing is reachable: every exchange draws dim, Enter opens the reader, `g` is dim and inert, and the pane shows the footer `Enter opens the reader. Jumping works in fullscreen.`
 - [x] The band shows the latest exchange's thread as `latest #n/N`.
 - [x] No inline dividers or prompt glyphs draw.
-- [ ] `/mark` and the reader's `m` work as in fullscreen.
+- [x] `/mark` and the reader's `m` work as in fullscreen. (Ticket 06: plugin test `mod/tests/mark.test.ts`, "main screen (ticket 08)". The reader's bookmark line is not a jump there, as nothing jumps.)
 - [ ] Build check: run it on the main screen and confirm Enter opens the reader in the transient pane. Record the finding on this ticket.
 
 ## Comments

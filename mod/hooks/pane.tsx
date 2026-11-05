@@ -4,9 +4,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 import type { ChainView, ConversationFile, Exchange, PaneState, PaneView, ReaderMenu } from '../types/index'
-import { GLYPH } from './lib/band'
+import { GLYPH, type Here } from './lib/band'
 import { anchorOf, heldValue, markMenu, menuKey, noteKey } from './lib/bookmarks'
 import { isLive, isReachable } from './lib/chain'
+import { exchangeById, liveExchanges, type ChainOptions } from './lib/model'
 import {
   PANE_ID,
   PANE_ROWS,
@@ -14,7 +15,10 @@ import {
   afterJump,
   bandTarget,
   enterAction,
+  exchangeKey,
+  hotkeyKey,
   isNarrow,
+  isTreeRowKey,
   marksUsage,
   onPaneClose,
   openTarget,
@@ -27,18 +31,21 @@ import {
 import { readerModel } from './lib/reader'
 import type { ExchangeRows } from './lib/rows'
 import { layoutTree } from './lib/tree'
-import { fixMode, noteMode, readMode } from './mode'
+import { log, reasonOf } from './log'
+import { fixMode, noteMode, readMode, type Mode } from './mode'
 
 const paneA = atom({ plugin: 'marks', key: 'pane' } as const, { target: null, lastJump: null, view: { kind: 'tree' } } as PaneState)
-// The engine's scan wants each atom a module reads as a const of that file: these two
+// The engine's scan wants each atom a module reads as a const of that file: these
 // repeat register.tsx's. Keep the shape tag in step with it.
-const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
+const fileA = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
 const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
 const chainA = atom({ plugin: 'marks', key: 'chain' } as const, null)
 
 /** Retaking the keys after a refused Esc waits this long, so the refusal lands first. */
 const RETAKE_MS = 30
 const TREE: PaneView = { kind: 'tree' }
+/** The pane's window; opening an open id re-focuses it. */
+const PANE_WINDOW = { id: PANE_ID, title: 'marks', focus: true, closeOnEscape: true, rows: PANE_ROWS } as const
 
 /** The last tree row (`ex:` or `th:` key) the ring moved onto; `p` reads its exchange. Lost on reload. */
 let focusedRow: string | null = null
@@ -50,11 +57,6 @@ export type RowsOf = (id: string) => ExchangeRows | undefined
 const liveOf = (chain: ChainView | null) => (x: Exchange) => isLive(chain, x.id)
 const reachOf = (chain: ChainView | null, fullscreen: boolean) => (x: Exchange) => isReachable(chain, x.id, fullscreen)
 
-function log($: EngineInterface, text: string) {
-  $.ui.log(`marks: ${text}`, { to: 'debug' })
-}
-const reasonOf = (err: unknown) => (err instanceof Error ? err.message : String(err))
-
 /** Moves the ring onto `key`; the kit cannot answer, so a rejection is only logged. */
 async function focusOn($: EngineInterface, key: string) {
   const f = await $.ui.focus({ requestId: PANE_ID, key }).catch(err => ({ deny: reasonOf(err) }))
@@ -65,7 +67,7 @@ async function focusOn($: EngineInterface, key: string) {
 export async function openPane($: EngineInterface, target: string | undefined) {
   focusedRow = null
   await update($, paneA, p => ({ ...p, target: target ?? null, view: TREE }))
-  const r = await $.ui.open({ id: PANE_ID, title: 'marks', focus: true, closeOnEscape: true, rows: PANE_ROWS })
+  const r = await $.ui.open(PANE_WINDOW)
   if (!r.isPlaced) {
     log($, `pane not placed: ${r.reason}`)
     return
@@ -73,14 +75,14 @@ export async function openPane($: EngineInterface, target: string | undefined) {
   if (!target) return
   // autoFocus covers a fresh pane; these move the ring and the window on one already open.
   // The kit cannot answer either call, so a rejection is only logged.
-  const key = `ex:${target}`
+  const key = exchangeKey(target)
   const f = await $.ui.focus({ requestId: PANE_ID, key }).catch(err => ({ deny: reasonOf(err) }))
   const s = await $.ui.scroll({ in: PANE_ID, to: { key }, block: 'center' }).catch(err => ({ deny: reasonOf(err) }))
   if (f.deny || s.deny) log($, `open on ${target}: focus ${f.deny ?? 'ok'}, scroll ${s.deny ?? 'ok'}`)
 }
 
 /** Opens the pane on the band's exchange (a band click). */
-export async function openFromBand($: EngineInterface, file: ConversationFile | null, o: { fullscreen: boolean; hereId: string | null }) {
+export async function openFromBand($: EngineInterface, file: ConversationFile | null, o: Here) {
   await openPane($, bandTarget(file, o))
 }
 
@@ -88,12 +90,12 @@ export async function openFromBand($: EngineInterface, file: ConversationFile | 
 async function showReader($: EngineInterface, id: string, deny?: string) {
   const view: PaneView = deny ? { kind: 'reader', id, deny } : { kind: 'reader', id }
   await update($, paneA, p => ({ ...p, view }))
-  await focusOn($, 'key:j')
+  await focusOn($, hotkeyKey('j'))
 }
 
 /** Back to the tree, cursor on exchange `id`. */
 async function showTree($: EngineInterface, id: string) {
-  focusedRow = `ex:${id}`
+  focusedRow = exchangeKey(id)
   await update($, paneA, p => ({ ...p, target: id, view: TREE }))
 }
 
@@ -101,7 +103,7 @@ async function showTree($: EngineInterface, id: string) {
 async function showMenu($: EngineInterface, id: string, menu: ReaderMenu | undefined) {
   const view: PaneView = menu ? { kind: 'reader', id, menu } : { kind: 'reader', id }
   await update($, paneA, p => ({ ...p, view }))
-  await focusOn($, menu === 'pick' ? menuKey(id) : menu === 'note' ? noteKey(id) : 'key:m')
+  await focusOn($, menu === 'pick' ? menuKey(id) : menu === 'note' ? noteKey(id) : hotkeyKey('m'))
 }
 
 /**
@@ -110,9 +112,9 @@ async function showMenu($: EngineInterface, id: string, menu: ReaderMenu | undef
  * and remember. Unreachable, the main screen, or a denied jump: the reader instead.
  * `row`: a manual bookmark's reply row (ticket 06), tried first; denied, the prompt row.
  */
-async function enter($: EngineInterface, id: string, seen: boolean | undefined, row?: string) {
+async function enter($: EngineInterface, id: string, seen: Mode, row?: string) {
   const fullscreen = await readMode($, seen)
-  const file = await read($, conv)
+  const file = await read($, fileA)
   const act = file && enterAction(file, id, { fullscreen, isReachable: reachOf(await read($, chainA), true) })
   if (!act) return
   // The reader works out the reason itself (lib/reader), from the same facts.
@@ -145,7 +147,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
       return {}
     }
     const pane = await read($, paneA)
-    await openPane($, openTarget(await read($, conv), pane.lastJump, liveOf(await read($, chainA))))
+    await openPane($, openTarget(await read($, fileA), pane.lastJump, liveOf(await read($, chainA))))
     return {}
   })
 
@@ -161,9 +163,9 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     // Esc already handed the keys to the prompt; once the refusal lands, take them back.
     // An open id is not re-created: open re-delivers the focus request.
     $.clock.after(RETAKE_MS, async () => {
-      const r = await $.ui.open({ id: PANE_ID, title: 'marks', focus: true, closeOnEscape: true, rows: PANE_ROWS }).catch(err => ({ isPlaced: false, reason: reasonOf(err) }))
+      const r = await $.ui.open(PANE_WINDOW).catch(err => ({ isPlaced: false, reason: reasonOf(err) }))
       if (!r.isPlaced) log($, `back to ${act === 'to-reader' ? 'reader' : 'tree'}: not placed (${'reason' in r ? r.reason : ''})`)
-      await focusOn($, act === 'to-reader' ? 'key:m' : `ex:${view.id}`)
+      await focusOn($, act === 'to-reader' ? hotkeyKey('m') : exchangeKey(view.id))
     })
     // Answering without next keeps the pane open (person and plugin closes, never unload).
     return { value: undefined }
@@ -172,29 +174,28 @@ export function registerPane(on: On, rowsOf: RowsOf) {
   // Which tree row holds the ring, for `p`. Keys and engine stops leave the last row standing.
   on('ui.focus', { component: 'Pane', requestId: PANE_ID }, async ($, e, next) => {
     const r = await next(e)
-    if (!r.deny && e.element && /^(ex|th):/.test(e.element)) focusedRow = e.element
+    if (!r.deny && e.element && isTreeRowKey(e.element)) focusedRow = e.element
     return r
   })
 
-  on('ui.render', { component: 'Pane', requestId: 'marks' }, async ($, e) => {
-    const file = await read($, conv)
+  on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
+    const file = await read($, fileA)
     const pane = await read($, paneA)
     const hereId = await read($, hereA)
     const chain = await read($, chainA)
     const { Box, Text, Button, Markdown, Select, Input } = $.ui.resolve(e)
     noteMode(e.viewport?.isFullscreen)
     const fullscreen = await readMode($, e.viewport?.isFullscreen)
-    const W = e.props.bodyColumns
-    const isLiveX = liveOf(chain)
+    const columns = e.props.bodyColumns
     // Unknown viewport (undefined) counts as fullscreen, as Enter tries the jump then.
-    const isReachableX = reachOf(chain, fullscreen !== false)
+    const chainOptions: ChainOptions = { isLive: liveOf(chain), isReachable: reachOf(chain, fullscreen !== false), unlabelled: chain?.unlabelled }
 
     /** A key line: hotkeys as plain Buttons (`p: read`), dim and inert when they can't act; the rest as text. */
     const keyLine = (keys: KeyHint[], act: Record<string, () => unknown>) => (
       <Box flexDirection="row" columnGap={2} flexWrap="wrap">
         {keys.map(k =>
           k.hotkey ? (
-            <Button key={`key:${k.hotkey}`} plain hotkey={k.hotkey} dimColor={!k.enabled || undefined} onPress={k.enabled ? () => act[k.hotkey as string]?.() : () => undefined}>
+            <Button key={hotkeyKey(k.hotkey)} plain hotkey={k.hotkey} dimColor={!k.enabled || undefined} onPress={k.enabled ? () => act[k.hotkey as string]?.() : () => undefined}>
               {k.label}
             </Button>
           ) : (
@@ -205,44 +206,34 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     )
 
     const view = paneView(pane)
-    const m =
-      file && view.kind === 'reader'
-        ? readerModel(file, view.id, {
-            fullscreen,
-            isLive: isLiveX,
-            isReachable: isReachableX,
-            unlabelled: chain?.unlabelled,
-            deny: view.deny,
-            rows: rowsOf(view.id),
-          })
-        : undefined
+    const reader = file && view.kind === 'reader' ? readerModel(file, view.id, { fullscreen, ...chainOptions, deny: view.deny, rows: rowsOf(view.id) }) : undefined
     // A reader whose exchange is gone (a rewind hid it) falls back to the tree.
-    if (m) {
-      const rule = <Text dimColor>{'─'.repeat(Math.max(1, W))}</Text>
-      const x = file?.exchanges.find(y => y.id === m.id)
-      const rows = rowsOf(m.id)
+    if (reader) {
+      const rule = <Text dimColor>{'─'.repeat(Math.max(1, columns))}</Text>
+      const x = file ? exchangeById(file, reader.id) : undefined
+      const rows = rowsOf(reader.id)
       const menu = view.kind === 'reader' ? view.menu : undefined
       return (
         <Box flexDirection="column">
-          {keyLine(readerKeys(m), {
-            j: () => m.next && showReader($, m.next),
-            k: () => m.prev && showReader($, m.prev),
-            g: () => enter($, m.id, fullscreen),
-            m: () => showMenu($, m.id, 'pick'),
+          {keyLine(readerKeys(reader), {
+            j: () => reader.next && showReader($, reader.next),
+            k: () => reader.prev && showReader($, reader.prev),
+            g: () => enter($, reader.id, fullscreen),
+            m: () => showMenu($, reader.id, 'pick'),
           })}
           <Box flexDirection="row">
-            {m.path.map(s => (
+            {reader.path.map(s => (
               <Text color={s.color} bold={s.bold} dimColor={s.dim} wrap="truncate">
                 {s.text}
               </Text>
             ))}
-            <Text dimColor wrap="truncate">{` · #${m.n} · ${m.i} of ${m.k} in thread`}</Text>
+            <Text dimColor wrap="truncate">{` · #${reader.n} · ${reader.i} of ${reader.k} in thread`}</Text>
           </Box>
-          {m.reason ? <Text color="warning">{m.reason}</Text> : null}
-          {m.bookmarks.map(b =>
+          {reader.reason ? <Text color="warning">{reader.reason}</Text> : null}
+          {reader.bookmarks.map(b =>
             // The manual bookmark's line jumps to its row (prompt row when that can't be found).
-            b.glyph === GLYPH.manual && m.canJump && x ? (
-              <Button key="mark:jump" plain onPress={() => enter($, m.id, fullscreen, anchorOf(x, rows))}>
+            b.glyph === GLYPH.manual && reader.canJump && x ? (
+              <Button key="mark:jump" plain onPress={() => enter($, reader.id, fullscreen, anchorOf(x, rows))}>
                 <Text color={b.color}>{`${b.glyph} `}</Text>
                 <Text dimColor>{b.text}</Text>
               </Button>
@@ -256,25 +247,25 @@ export function registerPane(on: On, rowsOf: RowsOf) {
           {/* The menu and the note change the file in register.tsx's ui.select / ui.input hooks, before these handlers. */}
           {menu === 'pick' && x ? (
             <Select
-              key={menuKey(m.id)}
+              key={menuKey(reader.id)}
               label="bookmark"
               options={markMenu(x, rows)}
               autoFocus
-              onSelect={v => void showMenu($, m.id, v === heldValue(x, rows) ? undefined : 'note')}
+              onSelect={v => void showMenu($, reader.id, v === heldValue(x, rows) ? undefined : 'note')}
             />
           ) : null}
           {menu === 'note' ? (
-            <Input key={noteKey(m.id)} label="note" placeholder="Enter for none" submitLabel="save" autoFocus onSubmit={() => void showMenu($, m.id, undefined)} />
+            <Input key={noteKey(reader.id)} label="note" placeholder="Enter for none" submitLabel="save" autoFocus onSubmit={() => void showMenu($, reader.id, undefined)} />
           ) : null}
           {rule}
-          {m.prompts.map(p => (
+          {reader.prompts.map(p => (
             <Box flexDirection="row">
               <Text color="suggestion">{'> '}</Text>
               <Text>{p}</Text>
             </Box>
           ))}
           {rule}
-          {m.replies.length ? m.replies.map((text, i) => <Markdown key={`reply:${i}`} text={text} />) : <Text dimColor>No reply text.</Text>}
+          {reader.replies.length ? reader.replies.map((text, i) => <Markdown key={`reply:${i}`} text={text} />) : <Text dimColor>No reply text.</Text>}
         </Box>
       )
     }
@@ -291,15 +282,14 @@ export function registerPane(on: On, rowsOf: RowsOf) {
       )
     }
     const rows = layoutTree(file, {
-      columns: W,
-      narrow: isNarrow(e.props.placement, W),
+      columns,
+      narrow: isNarrow(e.props.placement, columns),
       lastJump: pane.lastJump,
-      bandId: bandTarget({ ...file, exchanges: file.exchanges.filter(isLiveX) }, { fullscreen: fullscreen === true, hereId }),
-      isReachable: isReachableX,
-      isLive: isLiveX,
-      unlabelled: chain?.unlabelled,
+      bandId: bandTarget({ ...file, exchanges: liveExchanges(file, chainOptions.isLive) }, { fullscreen: fullscreen === true, hereId }),
+      ...chainOptions,
     })
-    const target = rows.some(r => r.key === `ex:${pane.target}`) ? pane.target : openTarget(file, null, isLiveX)
+    const held = pane.target
+    const target = held && rows.some(r => r.key === exchangeKey(held)) ? held : openTarget(file, null, chainOptions.isLive)
     const readFocused = () => {
       const id = readTarget(rows, focusedRow, target ?? undefined)
       return id && showReader($, id)
@@ -307,7 +297,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     return (
       <Box flexDirection="column">
         {rows.map(r => (
-          <Button key={r.key} plain autoFocus={r.key === `ex:${target}` || undefined} onPress={() => enter($, r.target, fullscreen)}>
+          <Button key={r.key} plain autoFocus={(target && r.key === exchangeKey(target)) || undefined} onPress={() => enter($, r.target, fullscreen)}>
             {r.segments.map(s => (
               <Text color={s.color} bold={s.bold} dimColor={s.dim}>
                 {s.text}

@@ -33,8 +33,8 @@ import {
   type Tracked,
 } from './lib/tracker'
 
-/** Bump the shape tag whenever ConversationFile changes type (and in pane.tsx, which repeats it). */
-const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
+/** The data file, mirrored (`marks.conv`). Bump the shape tag whenever ConversationFile changes type, here and in pane.tsx and persist.ts, which repeat it. */
+const fileA = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
 const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
 const offA = atom({ plugin: 'marks', key: 'labellerOff' } as const, null)
 const chainA = atom({ plugin: 'marks', key: 'chain' } as const, null)
@@ -98,7 +98,7 @@ const showStatus = ($: EngineInterface, file: ConversationFile | null) => {
 
 const publish = async ($: EngineInterface) => {
   const file = tracked?.file ?? null
-  await update($, conv, () => file)
+  await update($, fileA, () => file)
   await publishMarkers($, file, chainView)
   showStatus($, file)
 }
@@ -429,7 +429,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     // Unknown mode reads as fullscreen: the band says `here` (ticket 08).
     const fullscreen = (await readMode($, e.viewport?.isFullscreen)) !== false
-    const file = await read($, conv)
+    const file = await read($, fileA)
     const hereId = await read($, hereA)
     const off = await read($, offA)
     const chain = await read($, chainA)
@@ -466,23 +466,23 @@ export const register: Register = on => {
     if (e.requestId === 'placeholder' || e.props.isExpanded || e.props.origin.kind !== 'composer' || !e.viewport) return next(e)
     if ((await readMode($, e.viewport?.isFullscreen)) !== true) return next(e)
     // Read before drawing: the row redraws when its marker is written (a label landing).
-    const m = await read($, memberOf(markerA, e))
+    const marker = await read($, memberOf(markerA, e))
     const inner = await next(e)
-    if (!m) return inner
+    if (!marker) return inner
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
         {inner}
-        {m.divider !== undefined ? (
+        {marker.divider !== undefined ? (
           <Box position="absolute" top={0} left={0}>
-            <Text color={m.color} wrap="truncate">
-              {dividerLine(m.divider, e.viewport.columns)}
+            <Text color={marker.color} wrap="truncate">
+              {dividerLine(marker.divider, e.viewport.columns)}
             </Text>
           </Box>
         ) : null}
-        {m.glyph !== undefined ? (
+        {marker.glyph !== undefined ? (
           <Box position="absolute" top={1} left={0}>
-            <Text color={m.color}>{m.glyph}</Text>
+            <Text color={marker.color}>{marker.glyph}</Text>
           </Box>
         ) : null}
       </Box>
@@ -516,16 +516,16 @@ export const register: Register = on => {
   // A pick in the reader's `m` menu, or its note, lands in the file before the pane's own
   // handler (the bottom of the chain) switches the view.
   on('ui.select', { component: 'Pane', requestId: PANE_ID }, async ($, e, next) => {
-    const m = menuTarget(e.element)
-    if (m?.kind === 'pick') {
+    const target = menuTarget(e.element)
+    if (target?.kind === 'pick') {
       const at = await isoNow($)
-      await guard($, 'bookmark menu', () => editFile($, f => pickMark(f, m.id, e.value, rowsOf(m.id), at).file))
+      await guard($, 'bookmark menu', () => editFile($, f => pickMark(f, target.id, e.value, rowsOf(target.id), at).file))
     }
     return next(e)
   })
   on('ui.input', { component: 'Pane', requestId: PANE_ID }, async ($, e, next) => {
-    const m = menuTarget(e.element)
-    if (m?.kind === 'note' && e.kind === 'submit') await guard($, 'bookmark note', () => editFile($, f => noteManual(f, m.id, e.value)))
+    const target = menuTarget(e.element)
+    if (target?.kind === 'note' && e.kind === 'submit') await guard($, 'bookmark note', () => editFile($, f => noteManual(f, target.id, e.value)))
     return next(e)
   })
 

@@ -15,7 +15,7 @@ let sent: ReadonlyMap<string, string> = new Map()
 
 /**
  * Writes the family member of each prompt row whose marker changed, so a label landing
- * redraws only the rows it touches (one big `conv` read would redraw every row on every write).
+ * redraws only the rows it touches (one big `marks.conv` read would redraw every row on every write).
  * Live exchanges only (`chain`): a rewound one gets no marker and doesn't split a thread run.
  */
 export async function publishMarkers($: EngineInterface, file: ConversationFile | null, chain: ChainView | null) {

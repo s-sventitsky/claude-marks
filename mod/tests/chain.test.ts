@@ -202,6 +202,23 @@ describe('viewOf', () => {
     expect(viewOf(t, file('u1'), []).compacted).toEqual(['u1'])
   })
 
+  test('rows read after a live boundary but written before it stay before it; rows after its own row come after', () => {
+    const t = read(J.human('u1', null, 'a'), J.text('a1', 'u1', 'x'))
+    addBoundary(t, 'b1')
+    // The tail read catches up: u2 was written before the boundary.
+    for (const l of [J.human('u2', 'a1', 'late'), J.text('a2', 'u2', 'y'), J.boundary('b1', 'a2'), J.human('u3', 'b1', 'after')]) ingest(t, l)
+    const v = viewOf(t, file('u1', 'u2', 'u3'), [])
+    expect(v.compacted).toEqual(['u1', 'u2'])
+    expect(v.hidden).toEqual([])
+  })
+
+  test('a file boundary read while a live one waits keeps the live one last', () => {
+    const t = read(J.human('u1', null, 'a'))
+    addBoundary(t, 'b2')
+    for (const l of [J.boundary('b1', 'u1'), J.human('u2', 'b1', 'b')]) ingest(t, l)
+    expect(viewOf(t, file('u1', 'u2'), []).compacted).toEqual(['u1', 'u2'])
+  })
+
   test('carries the unlabelled ids it is given', () => {
     expect(viewOf(emptyTranscript(), file('u1'), ['u1']).unlabelled).toEqual(['u1'])
   })

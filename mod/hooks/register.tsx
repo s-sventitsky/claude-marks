@@ -179,7 +179,7 @@ const sync = async ($: EngineInterface): Promise<void> => {
     const switched = tracked !== null
     if (tracked) await flush($)
     const { file, fromState } = await loadFile($, id)
-    tracked = start(id, file)
+    tracked = start(file)
     transcript = null
     unlabelled = []
     chainView = null

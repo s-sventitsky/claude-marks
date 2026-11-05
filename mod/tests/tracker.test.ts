@@ -1,11 +1,12 @@
 import { expect, test, describe } from 'claude-code/testing'
+import { emptyFile } from '../hooks/lib/model'
 import { start, onPrompt, onTurnStart, onTurnComplete, onResponse, onSubmit, onQueued, type Tracked } from '../hooks/lib/tracker'
 
 const ids = (t: Tracked) => t.file.exchanges.map(x => x.id)
 
 describe('tracker: composer prompts', () => {
   test('each prompt between turns is its own exchange', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'u1', 'first')
     t = onTurnStart(t)
     t = onTurnComplete(t)
@@ -15,7 +16,7 @@ describe('tracker: composer prompts', () => {
   })
 
   test('the turn may start before the prompt row is appended', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onTurnStart(t)
     t = onPrompt(t, 'u1', 'first')
     t = onTurnComplete(t)
@@ -23,7 +24,7 @@ describe('tracker: composer prompts', () => {
   })
 
   test('a prompt appended while the turn runs folds into its exchange', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'u1', 'first')
     t = onTurnStart(t)
     t = onPrompt(t, 'u2', 'also this')
@@ -34,7 +35,7 @@ describe('tracker: composer prompts', () => {
   })
 
   test('slash-command wrapper rows are not prompts', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'c1', '<command-name>/model</command-name>')
     t = onPrompt(t, 'c2', '<local-command-stdout>ok</local-command-stdout>')
     expect(ids(t)).toEqual([])
@@ -43,7 +44,7 @@ describe('tracker: composer prompts', () => {
 
 describe('tracker: prompts typed mid-turn and delivered as queued_command', () => {
   test('folds a delivered prompt the person typed during the turn, with its typed text', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'u1', 'first')
     t = onTurnStart(t)
     t = onSubmit(t, { text: 'and the tests', isComposer: true, duringTurn: true })
@@ -54,7 +55,7 @@ describe('tracker: prompts typed mid-turn and delivered as queued_command', () =
   })
 
   test('ignores a queued_command nobody typed (a notification)', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'u1', 'first')
     t = onTurnStart(t)
     t = onQueued(t, 'q1')
@@ -64,7 +65,7 @@ describe('tracker: prompts typed mid-turn and delivered as queued_command', () =
 
 describe('tracker: reply rows', () => {
   test('reply text rows and tool lines go to the running exchange', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onPrompt(t, 'u1', 'first')
     t = onTurnStart(t)
     t = onResponse(t, 'r1', [{ type: 'text', text: 'Looking.' }])
@@ -79,7 +80,7 @@ describe('tracker: reply rows', () => {
   })
 
   test('reply rows with no turn exchange are dropped', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onResponse(t, 'r1', [{ type: 'text', text: 'stray' }])
     expect(t.index).toEqual({})
   })
@@ -87,7 +88,7 @@ describe('tracker: reply rows', () => {
 
 describe('tracker: turns with no composer prompt', () => {
   test('a slash or skill turn anchors on its first reply text row with the command line', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onSubmit(t, { text: '/review the diff', command: { name: 'review', args: 'the diff' }, isComposer: true, duringTurn: false })
     t = onTurnStart(t)
     t = onResponse(t, 'r1', [{ type: 'tool_use', name: 'Bash', input: { command: 'git diff' } }])
@@ -99,7 +100,7 @@ describe('tracker: turns with no composer prompt', () => {
   })
 
   test('a slash turn with no reply text is skipped', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onSubmit(t, { text: '/x', command: { name: 'x', args: '' }, isComposer: true, duringTurn: false })
     t = onTurnStart(t)
     t = onResponse(t, 'r1', [{ type: 'tool_use', name: 'Bash', input: { command: 'ls' } }])
@@ -108,14 +109,14 @@ describe('tracker: turns with no composer prompt', () => {
   })
 
   test('a turn with neither a prompt nor a command makes no exchange', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onTurnStart(t)
     t = onResponse(t, 'r1', [{ type: 'text', text: 'continuing' }])
     expect(ids(t)).toEqual([])
   })
 
   test('a command whose turn never starts does not anchor a later turn', () => {
-    let t = start('s1')
+    let t = start(emptyFile('s1'))
     t = onSubmit(t, { text: '/marks', command: { name: 'marks', args: '' }, isComposer: true, duringTurn: false })
     t = onPrompt(t, 'u1', 'real prompt')
     t = onTurnStart(t)

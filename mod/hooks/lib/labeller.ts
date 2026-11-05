@@ -159,7 +159,8 @@ export const applyLabel = (file: ConversationFile, exchangeId: string, p: Parsed
   } else {
     const current = currentThread(file, exchangeId)
     const resumed = p.action === 'resume' ? resolveThread(file, p.id) : undefined
-    const action: Action = !current ? 'new_main' : p.action === 'resume' && !resumed ? 'continue' : p.action
+    // A resolvable resume resumes; otherwise no current thread means new_main, and an unknown resume continues.
+    const action: Action = resumed ? 'resume' : !current ? 'new_main' : p.action === 'resume' ? 'continue' : p.action
     if (action === 'new_main' || action === 'new_sub') {
       threadId = mintId(file)
       const text = (p.label || p.gist || ex.excerpt).slice(0, LABEL_MAX)

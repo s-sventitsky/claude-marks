@@ -144,4 +144,15 @@ describe('main screen', () => {
       await ui.unmount()
     }
   })
+
+  test("while the mode is unknown the tree's bold row is the band's here exchange", async ($, on) => {
+    const s = await setup($, on)
+    // u1's prompt row on screen; the tick makes it `here`.
+    await $.ui.mount(userRow('u1') as any)
+    await s.clock.advance(500)
+    const ui = await $.ui.mount(pane() as any)
+    const bold = async (key: string) => JSON.stringify((await ui.find({ type: 'Button', key }))?.children).includes('"bold":true')
+    expect(await bold('ex:u1')).toBe(true)
+    expect(await bold('ex:u3')).toBe(false)
+  })
 })

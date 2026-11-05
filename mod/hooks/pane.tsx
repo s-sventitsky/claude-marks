@@ -285,7 +285,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
       columns,
       narrow: isNarrow(e.props.placement, columns),
       lastJump: pane.lastJump,
-      bandId: bandTarget({ ...file, exchanges: liveExchanges(file, chainOptions.isLive) }, { fullscreen: fullscreen === true, hereId }),
+      bandId: bandTarget({ ...file, exchanges: liveExchanges(file, chainOptions.isLive) }, { fullscreen: fullscreen !== false, hereId }),
       ...chainOptions,
     })
     const held = pane.target

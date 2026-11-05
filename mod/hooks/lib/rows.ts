@@ -1,5 +1,5 @@
 // The in-memory row index: per exchange, its prompt texts, reply text rows and tool lines.
-// Never persisted (no transcript text is stored); rebuilt from the transcript on load (ticket 03).
+// Never persisted (the data file keeps only excerpts and bookmark texts); rebuilt from the transcript on load (ticket 03).
 
 export type ReplyRow = { uuid: string; text: string }
 export type ExchangeRows = { prompts: string[]; replies: ReplyRow[]; tools: string[] }

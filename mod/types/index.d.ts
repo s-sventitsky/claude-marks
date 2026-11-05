@@ -84,14 +84,23 @@ export type ChainView = {
   unlabelled: string[]
 }
 
-/** The pane's state (ticket 04). Ticket 05 adds the reader view here. */
+/**
+ * What the pane shows: the tree, or the reader on one exchange (ticket 05).
+ * `deny`: the engine refused the last jump to it (`Jump denied: …`); dropped on j/k.
+ */
+export type PaneView = { kind: 'tree' } | { kind: 'reader'; id: string; deny?: string }
+
+/**
+ * The pane's state (tickets 04, 05). No shape tag: a value stored by an older build
+ * (ticket 04 had `note` and no `view`) is read through `paneView` in hooks/lib/pane.ts.
+ */
 export type PaneState = {
-  /** The exchange the cursor starts on when the pane opens. */
+  /** The exchange the cursor starts on when the tree shows (on open, and back from the reader). */
   target: string | null
   /** The exchange Enter last jumped to (this session); `/marks` reopens on it. */
   lastJump: string | null
-  /** The footer line: why the last Enter did not jump. Cleared on open and on a jump. */
-  note: string | null
+  /** Tree or reader. Reset to the tree on each open. */
+  view: PaneView
 }
 
 /**
@@ -115,7 +124,7 @@ declare module 'claude-code' {
       labellerOff: string | null
       /** Liveness and reachability (ticket 03); null before the first transcript read. */
       chain: ChainView | null
-      /** The pane: cursor target, last jump, footer note. */
+      /** The pane: cursor target, last jump, tree or reader. */
       pane: PaneState
       /** Inline marker per prompt row (exchange id); null = none. Written only when it changes. */
       marker: StateFamily<Marker | null>

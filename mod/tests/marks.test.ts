@@ -2,7 +2,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import { emptyFile } from '../hooks/lib/model'
 import type { ConversationFile, Exchange, Thread } from '../types/index'
-import { BAND, SESSION_START, dataPath, world } from './harness'
+import { BAND, SESSION_START, dataPath, prompt, replyText, world } from './harness'
 
 const th = (id: string, text: string, parent: string | null = null): Thread => ({ id, label: { text, by: 'labeller' }, parent, mergedFrom: [] })
 const ex = (id: string, thread: string, gist: string): Exchange => ({
@@ -53,7 +53,10 @@ const setup = async ($: any, on: any) => {
   return { w, opens, closes, toasts }
 }
 
-const texts = async (ui: any) => (await ui.findAll({ type: 'Button' })).map((b: any) => b.text)
+/** The tree's rows (headers and exchanges), not its key Buttons. */
+const texts = async (ui: any) =>
+  (await ui.findAll({ type: 'Button' })).filter((b: any) => /^(ex|th):/.test(b.key)).map((b: any) => b.text)
+const header = async (ui: any) => (await ui.find({ type: 'Text', text: / in thread$/ }))?.text
 
 describe('/marks', () => {
   test('is registered at session start and runs mid-turn', async ($, on) => {
@@ -88,7 +91,7 @@ describe('the pane', () => {
     expect((await ui.findAll({ type: 'Text', text: /Enter jump/ })).length).toBeGreaterThan(0)
   })
 
-  test("a denied jump keeps the pane open and shows the reason in the footer", async ($, on) => {
+  test('a denied jump keeps the pane open and opens the reader with the deny text', async ($, on) => {
     // The kit cannot answer $.ui.scroll: every jump here takes the denied path.
     const s = await setup($, on)
     await $.command.run(run() as any)
@@ -96,8 +99,11 @@ describe('the pane', () => {
     await ui.press({ key: 'ex:u2' })
     await ui.redraw()
     expect(s.closes).toHaveLength(0)
+    expect(await ui.find({ type: 'Text', text: ' · #2 · 1 of 1 in thread' })).toBeDefined()
     expect((await ui.find({ type: 'Text', text: /^Jump denied: / }))?.text).toMatch(/ui\.scroll/)
-    // The jump was not remembered: the next /marks opens on the latest again.
+    // g stays live: the person may try again.
+    expect((await ui.find({ type: 'Button', key: 'key:g' }))?.props.dimColor).toBeUndefined()
+    // The jump was not remembered: the next /marks opens the tree on the latest again.
     await $.command.run(run() as any)
     await ui.redraw()
     expect((await ui.findAll({ type: 'Button' })).filter((b: any) => b.props.autoFocus).map((b: any) => b.key)).toEqual(['ex:u3'])
@@ -115,6 +121,94 @@ describe('the pane', () => {
     await $.session.start(SESSION_START)
     const ui = await $.ui.mount(PANE as any)
     expect(await ui.find({ type: 'Text', text: /No exchanges yet/ })).toBeDefined()
+  })
+})
+
+describe('the reader', () => {
+  test("p opens the reader on the cursor's exchange: header, then j/k through the family", async ($, on) => {
+    await setup($, on)
+    await $.command.run(run() as any)
+    const ui = await $.ui.mount(PANE as any)
+    await ui.press({ key: 'key:p' })
+    await ui.redraw()
+    // u3 is Login's second exchange: #3 overall, 2 of 2 in the family.
+    expect(await header(ui)).toBe(' · #3 · 2 of 2 in thread')
+    expect(await ui.find({ type: 'Text', text: 'Login' })).toBeDefined()
+    expect(await texts(ui)).toEqual([])
+    // j is dim and inert at the family's end.
+    expect((await ui.find({ type: 'Button', key: 'key:j' }))?.props.dimColor).toBe(true)
+    await ui.press({ key: 'key:j' })
+    await ui.redraw()
+    expect(await header(ui)).toBe(' · #3 · 2 of 2 in thread')
+    await ui.press({ key: 'key:k' })
+    await ui.redraw()
+    expect(await header(ui)).toBe(' · #1 · 1 of 2 in thread')
+    expect((await ui.find({ type: 'Button', key: 'key:k' }))?.props.dimColor).toBe(true)
+  })
+
+  test('the prompt and reply text come from the row index; the reply as Markdown', async ($, on) => {
+    world(on, mock)
+    await $.session.start(SESSION_START)
+    await $.turn.start({ text: 'why', turnId: 't1' } as any)
+    await $.session.append(prompt('u1', 'why does login fail?') as any)
+    await $.session.append(replyText('r1', 'It was **the cookie**.') as any)
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as any)
+    const ui = await $.ui.mount(PANE as any)
+    await ui.press({ key: 'key:p' })
+    await ui.redraw()
+    expect(await ui.find({ type: 'Text', text: 'why does login fail?' })).toBeDefined()
+    expect((await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text)).toEqual(['It was **the cookie**.'])
+    // Not labelled yet: the Unlabelled group is its family.
+    expect(await ui.find({ type: 'Text', text: 'Unlabelled' })).toBeDefined()
+  })
+
+  test('main screen: Enter opens the reader with the reason; g is dim and inert', async ($, on) => {
+    const s = await setup($, on)
+    const MAIN = { ...PANE, viewport: { ...PANE.viewport, isFullscreen: false } }
+    const ui = await $.ui.mount(MAIN as any)
+    await ui.press({ key: 'ex:u1' })
+    await ui.redraw()
+    expect(await header(ui)).toBe(' · #1 · 1 of 2 in thread')
+    expect(await ui.find({ type: 'Text', text: 'Enter opens the reader. Jumping works in fullscreen.' })).toBeDefined()
+    expect((await ui.find({ type: 'Button', key: 'key:g' }))?.props.dimColor).toBe(true)
+    await ui.press({ key: 'key:g' })
+    await ui.redraw()
+    expect(await header(ui)).toBe(' · #1 · 1 of 2 in thread')
+    expect(s.closes).toHaveLength(0)
+  })
+
+  test('p reads the row the ring moved onto', async ($, on) => {
+    on('ui.focus', () => ({}))
+    await setup($, on)
+    await $.command.run(run() as any)
+    const ui = await $.ui.mount(PANE as any)
+    // The engine moves the ring as the person presses the arrows; `p` reads that row.
+    await ($.ui as any).focus({ component: 'Pane', requestId: 'marks', element: 'ex:u2', origin: { kind: 'person' } })
+    await ui.press({ key: 'key:p' })
+    await ui.redraw()
+    expect(await header(ui)).toBe(' · #2 · 1 of 1 in thread')
+  })
+
+  test('m is drawn and inert (ticket 06); n is unbound', async ($, on) => {
+    await setup($, on)
+    await $.command.run(run() as any)
+    const ui = await $.ui.mount(PANE as any)
+    await ui.press({ key: 'key:p' })
+    await ui.redraw()
+    const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.props.hotkey)
+    expect(keys).toEqual(['j', 'k', 'g', 'm'])
+    expect((await ui.find({ type: 'Button', key: 'key:m' }))?.props.dimColor).toBe(true)
+  })
+
+  test('/marks while the reader shows opens the tree again', async ($, on) => {
+    await setup($, on)
+    await $.command.run(run() as any)
+    const ui = await $.ui.mount(PANE as any)
+    await ui.press({ key: 'key:p' })
+    await $.command.run(run() as any)
+    await ui.redraw()
+    expect(await header(ui)).toBeUndefined()
+    expect((await texts(ui)).length).toBe(5)
   })
 })
 

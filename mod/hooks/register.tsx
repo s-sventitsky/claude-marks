@@ -531,5 +531,5 @@ export const register: Register = on => {
     return next(e)
   })
 
-  registerPane(on)
+  registerPane(on, id => tracked?.index[id])
 }

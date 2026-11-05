@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { emptyFile } from '../hooks/lib/model'
-import { REASON, afterJump, bandTarget, enterAction, isNarrow, marksUsage, openTarget, treeKeys } from '../hooks/lib/pane'
+import { REASON, afterJump, bandTarget, enterAction, isNarrow, marksUsage, onPaneClose, openTarget, paneView, readTarget, readerKeys, treeKeys } from '../hooks/lib/pane'
 import type { ConversationFile, Exchange } from '../types/index'
 
 const ex = (id: string): Exchange => ({
@@ -95,13 +95,58 @@ describe('/marks arguments and layout', () => {
     expect(isNarrow('dock', 60)).toBe(false)
   })
 
-  test('the tree draws every key it uses; a, v, / and left stay unbound', () => {
+  test('the tree draws every key it uses; p is its one hotkey; a, v, / and left stay unbound', () => {
     const keys = treeKeys({ fullscreen: true })
-    expect(keys.map(k => k.label)).toEqual(['↑↓ move', 'Enter jump', 'Esc close'])
-    expect(keys.map(k => k.hotkey).filter(Boolean)).toEqual([])
+    expect(keys.map(k => k.label)).toEqual(['↑↓ move', 'Enter jump', 'read', 'Esc close'])
+    expect(keys.map(k => k.hotkey).filter(Boolean)).toEqual(['p'])
   })
 
   test('on the main screen Enter reads instead of jumping', () => {
     expect(treeKeys({ fullscreen: false }).map(k => k.label)).toContain('Enter read')
+  })
+})
+
+describe('the pane view', () => {
+  test('a stored reader view is read back; anything else (an older PaneState, junk) is the tree', () => {
+    expect(paneView({ target: null, lastJump: null, note: null })).toEqual({ kind: 'tree' })
+    expect(paneView(undefined)).toEqual({ kind: 'tree' })
+    expect(paneView({ view: { kind: 'reader' } })).toEqual({ kind: 'tree' })
+    expect(paneView({ view: { kind: 'reader', id: 'a' } })).toEqual({ kind: 'reader', id: 'a' })
+    expect(paneView({ view: { kind: 'reader', id: 'a', deny: 'Jump denied: x' } })).toEqual({ kind: 'reader', id: 'a', deny: 'Jump denied: x' })
+  })
+
+  test("the person's close (Esc or ×) in the reader is refused and goes back to the tree", () => {
+    expect(onPaneClose({ kind: 'reader', id: 'a' }, 'person')).toBe('to-tree')
+  })
+
+  test('in the tree, or a close of the mod or the engine, the pane closes', () => {
+    expect(onPaneClose({ kind: 'tree' }, 'person')).toBe('pass')
+    expect(onPaneClose({ kind: 'reader', id: 'a' }, 'plugin')).toBe('pass')
+    expect(onPaneClose({ kind: 'reader', id: 'a' }, 'unload')).toBe('pass')
+  })
+
+  test("p reads the focused row's exchange: a header reads its first exchange; no row focused, the cursor's start", () => {
+    const rows = [
+      { key: 'th:t1', target: 'a' },
+      { key: 'ex:a', target: 'a' },
+      { key: 'ex:b', target: 'b' },
+    ]
+    expect(readTarget(rows, 'ex:b', 'a')).toBe('b')
+    expect(readTarget(rows, 'th:t1', 'b')).toBe('a')
+    expect(readTarget(rows, 'key:p', 'b')).toBe('b')
+    expect(readTarget(rows, null, 'b')).toBe('b')
+    expect(readTarget(rows, 'ex:gone', undefined)).toBeUndefined()
+  })
+
+  test('the reader draws j, k, g, m and Esc; inert ones are disabled; m is reserved for ticket 06; n is unbound', () => {
+    const keys = readerKeys({ prev: undefined, next: 'b', canJump: false })
+    expect(keys.map(k => [k.label, k.hotkey, k.enabled])).toEqual([
+      ['next', 'j', true],
+      ['previous', 'k', false],
+      ['jump', 'g', false],
+      ['bookmark', 'm', false],
+      ['Esc back', undefined, true],
+    ])
+    expect(readerKeys({ prev: 'a', next: undefined, canJump: true }).filter(k => k.enabled).map(k => k.hotkey)).toEqual(['k', 'g', undefined])
   })
 })

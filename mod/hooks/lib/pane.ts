@@ -1,5 +1,5 @@
 // The pane's decisions: where it opens, what Enter does, what a scroll result means. Pure.
-import type { ConversationFile, Exchange } from '../../types/index'
+import type { ConversationFile, Exchange, PaneView } from '../../types/index'
 
 export const PANE_ID = 'marks'
 /** Body rows asked for while the pane sits inline above the prompt. */
@@ -53,15 +53,52 @@ export const marksUsage = (args: string): string | undefined => (args.trim() ? '
 
 export const isNarrow = (placement: 'dock' | 'inline', bodyColumns: number): boolean => placement === 'inline' || bodyColumns < NARROW_COLUMNS
 
+/** One key a view draws. With a `hotkey`, a plain Button draws it as `<hotkey>: <label>`. */
 export type KeyHint = { label: string; hotkey?: string; enabled: boolean }
 
 /**
- * Every key the tree uses, drawn always (dim where inert). Engine keys only:
- * the ring's arrows and Tab, Enter on the focused Button, Esc via closeOnEscape.
+ * Every key the tree uses, drawn always (dim where inert): the ring's arrows and Tab,
+ * Enter on the focused Button, `p` (the reader), Esc via closeOnEscape.
  * `a`, `v`, `/` are reserved and left unbound; left arrow is the engine's (agents list).
  */
 export const treeKeys = (o: { fullscreen: boolean | undefined }): KeyHint[] => [
   { label: '↑↓ move', enabled: true },
   { label: o.fullscreen === false ? 'Enter read' : 'Enter jump', enabled: true },
+  { label: 'read', hotkey: 'p', enabled: true },
   { label: 'Esc close', enabled: true },
 ]
+
+/**
+ * The reader's keys, each drawn always: `j`/`k` step through the family, `g` jumps,
+ * `m` is reserved for the bookmark menu (ticket 06), Esc goes back to the tree. `n` stays unbound.
+ */
+export const readerKeys = (m: { prev?: string; next?: string; canJump: boolean }): KeyHint[] => [
+  { label: 'next', hotkey: 'j', enabled: m.next !== undefined },
+  { label: 'previous', hotkey: 'k', enabled: m.prev !== undefined },
+  { label: 'jump', hotkey: 'g', enabled: m.canJump },
+  { label: 'bookmark', hotkey: 'm', enabled: false },
+  { label: 'Esc back', enabled: true },
+]
+
+/** The pane's view from a stored PaneState, read defensively (no shape tag): anything unexpected is the tree. */
+export const paneView = (pane: unknown): PaneView => {
+  const v = pane && typeof pane === 'object' ? (pane as { view?: unknown }).view : undefined
+  if (!v || typeof v !== 'object') return { kind: 'tree' }
+  const r = v as { kind?: unknown; id?: unknown; deny?: unknown }
+  if (r.kind !== 'reader' || typeof r.id !== 'string') return { kind: 'tree' }
+  return typeof r.deny === 'string' ? { kind: 'reader', id: r.id, deny: r.deny } : { kind: 'reader', id: r.id }
+}
+
+/**
+ * `ui.close` on the pane: the person's close (Esc, the × mark) while the reader shows is
+ * refused and the tree comes back; any other close goes through.
+ */
+export const onPaneClose = (view: PaneView, origin: 'plugin' | 'person' | 'unload'): 'to-tree' | 'pass' =>
+  view.kind === 'reader' && origin === 'person' ? 'to-tree' : 'pass'
+
+/**
+ * `p` in the tree: the exchange of the focused row (a header's is its first exchange).
+ * No row focused (the ring on a key, or not heard yet): `fallback`, the cursor's start.
+ */
+export const readTarget = (rows: readonly { key: string; target: string }[], focused: string | null | undefined, fallback: string | undefined): string | undefined =>
+  rows.find(r => r.key === focused)?.target || fallback

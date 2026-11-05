@@ -64,7 +64,8 @@ export const pendingIds = (live: readonly Exchange[]): Set<string> => {
   return new Set(run.length <= GAP_MAX ? run.map(x => x.id) : [])
 }
 
-const UNLABELLED = 'unlabelled'
+/** The family key of the Unlabelled group. */
+export const UNLABELLED = 'unlabelled'
 
 /** `<k> ex  ◆1 ◇3 ↳1`, or `<k>` when narrow. */
 const counts = (xs: readonly Exchange[], narrow: boolean): string => {
@@ -75,10 +76,27 @@ const counts = (xs: readonly Exchange[], narrow: boolean): string => {
   return [`${xs.length} ex`, ...(marks.length ? [marks.join(' ')] : [])].join('  ')
 }
 
-export const layoutTree = (file: ConversationFile, o: TreeOptions): TreeRow[] => {
+/** How the tree groups live exchanges: numbers, each one's thread, families in order. */
+export type Groups = {
+  /** Live exchanges, conversation order. */
+  shown: Exchange[]
+  /** 1-based position among live exchanges: the number the tree shows. */
+  n: Map<string, number>
+  /** Unlabelled exchanges the labeller will still label (`…`); they show in the current thread. */
+  pending: Set<string>
+  /** The thread an exchange shows in: its own, the current one while pending, else none (Unlabelled). */
+  threadOf: (x: Exchange) => Thread | undefined
+  /** Family keys (a main thread's id, or UNLABELLED) in order of their first exchange. */
+  order: string[]
+  /** A main thread's and its subs' exchanges, in conversation order (tree order). */
+  family: Map<string, Exchange[]>
+  /** Each thread's own exchanges. */
+  own: Map<string, Exchange[]>
+}
+
+export const groupTree = (file: ConversationFile, o: Pick<TreeOptions, 'isLive' | 'unlabelled'>): Groups => {
   const shown = o.isLive ? file.exchanges.filter(o.isLive) : file.exchanges
   const n = new Map(shown.map((x, i) => [x.id, i + 1]))
-  const digits = String(shown.length).length
   const threads = new Map(file.threads.map(t => [t.id, t]))
   const left = o.unlabelled
   const pending = left ? new Set(shown.filter(x => !x.thread && !left.includes(x.id)).map(x => x.id)) : pendingIds(shown)
@@ -106,6 +124,13 @@ export const layoutTree = (file: ConversationFile, o: TreeOptions): TreeRow[] =>
     if (!own.has(t.id)) own.set(t.id, [])
     own.get(t.id)?.push(x)
   }
+  return { shown, n, pending, threadOf, order, family, own }
+}
+
+export const layoutTree = (file: ConversationFile, o: TreeOptions): TreeRow[] => {
+  const { shown, n, pending, threadOf, order, family, own } = groupTree(file, o)
+  const digits = String(shown.length).length
+  const threads = new Map(file.threads.map(t => [t.id, t]))
 
   const header = (t: Thread, xs: readonly Exchange[]): TreeRow => {
     const sub = t.parent !== null

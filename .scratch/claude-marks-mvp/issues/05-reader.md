@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Rebuild from the transcript), 04 (Pane tree with jump)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] `p` opens the reader in place: thread path in its colour, `· #n · i of k in thread` (counted over the main thread's family), the reason when a jump isn't possible, the exchange's bookmarks, then the prompt and the reply text blocks as Markdown. Text comes from the row index, so pre-compaction exchanges show in full.
 - [x] `j`/`k` step to the next/previous exchange in the main thread's family, dim and inert at either end. `g` jumps and closes the pane, dim and inert when unreachable. (A real `g` jump is a manual check.)

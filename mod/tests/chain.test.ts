@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { ConversationFile } from '../types/index'
-import { gapRun, isLive, isReachable, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
+import { gapRun, isLive, isReachable, liveFile, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
 import { addBoundary, emptyTranscript, ingest } from '../hooks/lib/jsonl'
 import { addExchange, emptyFile } from '../hooks/lib/model'
 import * as J from './fixtures/jsonl'
@@ -245,6 +245,14 @@ describe('liveView and mergeBack', () => {
     expect(v.exchanges.map(x => x.id)).toEqual(['u1', 'u3'])
     expect(v.threads).toBe(f.threads)
     expect(liveView(f, [])).toBe(f)
+  })
+
+  test('liveFile: the live view when the chain view is known, the file as it is otherwise', () => {
+    const f = file('u1', 'u2')
+    const view = { hidden: ['u2'], compacted: [], unlabelled: [] }
+    expect(liveFile(f, view).exchanges.map(x => x.id)).toEqual(['u1'])
+    expect(liveFile(f, null)).toBe(f)
+    expect(liveFile(null, view)).toBeNull()
   })
 
   test('mergeBack puts a changed view back without losing the hidden exchanges', () => {

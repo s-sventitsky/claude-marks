@@ -193,6 +193,13 @@ describe('applyLabel', () => {
     expect(exOf(applyLabel(f0, 'u3', reply({ action: 'resume' }), 'haiku'), 'u3')?.thread?.id).toBe('t2')
   })
 
+  test('resume to a known thread resumes it with no current thread (a live view after a rewind)', () => {
+    const f0 = file([th('t1', 'A'), th('t2', 'B')], [ex('u3', null)])
+    const f = applyLabel(f0, 'u3', reply({ action: 'resume', id: 't1' }), 'haiku')
+    expect(exOf(f, 'u3')?.thread?.id).toBe('t1')
+    expect(f.threads).toHaveLength(2)
+  })
+
   test('bookmarks: one per kind, none over a dismissed one, each added one counted', () => {
     const target: Exchange = {
       ...ex('u2', null),

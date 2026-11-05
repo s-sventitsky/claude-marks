@@ -90,6 +90,12 @@ describe('main screen', () => {
     expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · latest #3/3 · click or /marks')
   })
 
+  test('while the mode is unknown the band says here', async ($, on) => {
+    await setup($, on)
+    const ui = await $.ui.mount(band() as any)
+    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · here #3/3 · click or /marks')
+  })
+
   test('a drawing that reports the main screen fixes the mode for drawings that do not say', async ($, on) => {
     const s = await setup($, on)
     const first = await $.ui.mount(band(false) as any)

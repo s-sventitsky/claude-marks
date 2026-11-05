@@ -172,6 +172,13 @@ export const gapRun = (file: ConversationFile, hidden: readonly string[], fresh:
 export const liveView = (file: ConversationFile, hidden: readonly string[]): ConversationFile =>
   hidden.length ? { ...file, exchanges: file.exchanges.filter(x => !hidden.includes(x.id)) } : file
 
+/** The live view of a file when the chain view is known; the file as it is otherwise. */
+export function liveFile(file: ConversationFile, view: ChainView | null): ConversationFile
+export function liveFile(file: ConversationFile | null, view: ChainView | null): ConversationFile | null
+export function liveFile(file: ConversationFile | null, view: ChainView | null): ConversationFile | null {
+  return file && view ? liveView(file, view.hidden) : file
+}
+
 /**
  * The threads to show for a (live view of a) file: those with an exchange in it, and a
  * main thread while one of its sub-threads has one. File order.

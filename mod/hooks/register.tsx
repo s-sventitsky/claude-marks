@@ -489,7 +489,8 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     noteMode(e.viewport?.isFullscreen)
     if (e.props.hasSurvey) return next(e)
-    const fullscreen = (await readMode($, e.viewport?.isFullscreen)) === true
+    // Unknown mode reads as fullscreen: the band says `here` (ticket 08).
+    const fullscreen = (await readMode($, e.viewport?.isFullscreen)) !== false
     const file = await read($, conv)
     const hereId = await read($, hereA)
     const off = await read($, offA)

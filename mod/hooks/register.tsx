@@ -3,20 +3,22 @@
 // the data file on disk is the record.
 import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
-import type { ChainView, ConversationFile, StoreIndexEntry } from '../types/index'
+import type { ChainView, ConversationFile } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
-import { gapRun, isLive, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { gapRun, isLive, liveFile, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
 import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jsonl'
 import { buildDynamic, settle } from './lib/labeller'
-import { dividerLine, markers } from './lib/markers'
-import { emptyFile, parseFile } from './lib/model'
+import { dividerLine } from './lib/markers'
 import { fixMode, noteMode, readMode } from './mode'
 import { NO_EXCHANGE, menuTarget, noteManual, pickMark, runMark } from './lib/bookmarks'
 import { PANE_ID } from './lib/pane'
 import { openFromBand, registerMarksCommand, registerPane } from './pane'
-import { configDir, dataPath } from './lib/paths'
+import { configDir } from './lib/paths'
 import { RULES } from './lib/rules'
 import { promptText } from './lib/rows'
+import { log, reasonOf } from './log'
+import { publishMarkers } from './markers'
+import { flush as flushFile, loadFile, scheduleFlush as markDirty } from './persist'
 import { findTranscript, readTail, readTranscript, type ReadStats } from './lib/transcript'
 import {
   onPrompt,
@@ -39,7 +41,6 @@ const chainA = atom({ plugin: 'marks', key: 'chain' } as const, null)
 /** Inline marker per prompt row, a family keyed by exchange id (ticket 07). */
 const markerA = atom({ plugin: 'marks', key: 'marker' } as const, null)
 
-const FLUSH_MS = 1000
 const SWITCH_CHECK_MS = 250
 /** The labeller drain and the `here` check share one timer. */
 const TICK_MS = 500
@@ -57,8 +58,6 @@ let lastHere: string | null = null
 
 let tracked: Tracked | null = null
 let config: string | undefined
-let flushTimer: Timer | null = null
-let dirty = false
 let lastStatus: string | null = null
 /** A conversation load in flight; steps wait for it so none applies to the old file. */
 let switching: Promise<void> | null = null
@@ -82,8 +81,6 @@ const serial = <T,>(work: () => Promise<T>): Promise<T> => {
   return p
 }
 
-const log = ($: EngineInterface, text: string) => $.ui.log(`marks: ${text}`, { to: 'debug' })
-
 const readConfig = async ($: EngineInterface) =>
   configDir({
     CLAUDE_CONFIG_DIR: await $.env.get('CLAUDE_CONFIG_DIR'),
@@ -91,81 +88,24 @@ const readConfig = async ($: EngineInterface) =>
     USERPROFILE: await $.env.get('USERPROFILE'),
   })
 
-/** $.state first (it survives a hot reload and may be newer than the file), then the file, else empty. */
-const loadFile = async ($: EngineInterface, sessionId: string): Promise<{ file: ConversationFile; fromState: boolean }> => {
-  const held = await read($, conv)
-  if (held && held.sessionId === sessionId) return { file: held, fromState: true }
-  if (config) {
-    const path = dataPath(config, sessionId)
-    const text = (await $.fs.exists(path)) ? await $.fs.read(path).catch(() => undefined) : undefined
-    const parsed = typeof text === 'string' ? parseFile(text, sessionId) : undefined
-    if (parsed) return { file: parsed, fromState: false }
-  }
-  return { file: emptyFile(sessionId), fromState: false }
-}
-
 const showStatus = ($: EngineInterface, file: ConversationFile | null) => {
   // Threads with no live exchange are hidden, so not counted.
-  const text = statusLine(file && chainView ? { ...file, threads: visibleThreads(liveView(file, chainView.hidden)) } : file)
+  const text = statusLine(file && chainView ? { ...file, threads: visibleThreads(liveFile(file, chainView)) } : file)
   if (text === lastStatus) return
   lastStatus = text
   $.ui.status(text)
 }
 
-/** Marker members last written, by exchange id, as JSON. A reload starts empty and writes them all again. */
-const markerCache = new Map<string, string>()
-
-/**
- * Writes the family member of each prompt row whose marker changed, so a label landing
- * redraws only the rows it touches (one big `conv` read would redraw every row on every write).
- */
-const publishMarkers = async ($: EngineInterface, file: ConversationFile | null) => {
-  // Live exchanges only: a rewound one gets no marker and doesn't split a thread run.
-  const next = file ? markers(chainView ? liveView(file, chainView.hidden) : file) : {}
-  const writes: Promise<unknown>[] = []
-  for (const [id, m] of Object.entries(next)) {
-    const json = JSON.stringify(m)
-    if (markerCache.get(id) === json) continue
-    markerCache.set(id, json)
-    writes.push(update($, memberOf(markerA, { requestId: id }), () => m))
-  }
-  for (const id of [...markerCache.keys()]) {
-    if (id in next) continue
-    markerCache.delete(id)
-    writes.push(update($, memberOf(markerA, { requestId: id }), () => null))
-  }
-  await Promise.all(writes)
-}
-
 const publish = async ($: EngineInterface) => {
   const file = tracked?.file ?? null
   await update($, conv, () => file)
-  await publishMarkers($, file)
+  await publishMarkers($, file, chainView)
   showStatus($, file)
 }
 
-const flush = async ($: EngineInterface) => {
-  flushTimer?.cancel()
-  flushTimer = null
-  if (!dirty || !tracked || !config) return
-  dirty = false
-  const file = tracked.file
-  const path = dataPath(config, file.sessionId)
-  try {
-    await $.fs.write(path, JSON.stringify(file))
-    const entry: StoreIndexEntry = { file: path, updatedAt: new Date(await $.clock.now()).toISOString() }
-    await $.store.set(file.sessionId, entry)
-  } catch (err) {
-    dirty = true
-    log($, `write failed: ${String(err)}`)
-  }
-}
+const flush = ($: EngineInterface) => flushFile($, tracked?.file ?? null, config)
 
-const scheduleFlush = ($: EngineInterface) => {
-  dirty = true
-  flushTimer?.cancel()
-  flushTimer = $.clock.after(FLUSH_MS, () => void flush($))
-}
+const scheduleFlush = ($: EngineInterface) => markDirty($, () => ({ file: tracked?.file ?? null, config }))
 
 /**
  * Makes `tracked` the conversation `$.session.id()` names. A mismatch is a switch
@@ -178,7 +118,7 @@ const sync = async ($: EngineInterface): Promise<void> => {
   switching = (async () => {
     const switched = tracked !== null
     if (tracked) await flush($)
-    const { file, fromState } = await loadFile($, id)
+    const { file, fromState } = await loadFile($, config, id)
     tracked = start(id, file)
     transcript = null
     unlabelled = []
@@ -245,8 +185,6 @@ const guard = async ($: EngineInterface, what: string, work: () => Promise<void>
   }
 }
 
-const reasonOf = (err: unknown) => (err instanceof Error ? err.message : String(err))
-
 const logRead = ($: EngineInterface, what: string, s: ReadStats) =>
   log($, `${what}: ${s.via}${s.command ? ` (${s.command})` : ''}, ${s.size} bytes, ${s.pieces} pieces, ${s.ms} ms`)
 
@@ -258,7 +196,7 @@ const publishChain = async ($: EngineInterface) => {
   if (JSON.stringify(view) === JSON.stringify(chainView)) return
   chainView = view
   await update($, chainA, () => view)
-  await publishMarkers($, tracked.file)
+  await publishMarkers($, tracked.file, chainView)
   showStatus($, tracked.file)
 }
 
@@ -496,7 +434,8 @@ export const register: Register = on => {
     const off = await read($, offA)
     const chain = await read($, chainA)
     const left = unlabelledCount(file, chain)
-    const segments = band(file && chain ? liveView(file, chain.hidden) : file, {
+    const live = liveFile(file, chain)
+    const segments = band(live, {
       fullscreen,
       hereId,
       hint: off ? `labeller off: ${off}` : left ? `${left} unlabelled` : HINT,
@@ -506,7 +445,7 @@ export const register: Register = on => {
     // The whole band is one Button: a click opens the pane on the band's exchange (ticket 04).
     return (
       <Box flexDirection="row" width={e.props.bodyColumns}>
-        <Button key="band" plain onPress={() => openFromBand($, file && chain ? liveView(file, chain.hidden) : file, { fullscreen, hereId })}>
+        <Button key="band" plain onPress={() => openFromBand($, live, { fullscreen, hereId })}>
           {segments.map(s => (
             <Text color={s.color} bold={s.bold} dimColor={s.dim} wrap="truncate">
               {s.text}

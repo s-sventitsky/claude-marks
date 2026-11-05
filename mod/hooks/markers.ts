@@ -3,7 +3,7 @@
 import { atom, memberOf, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 import type { ChainView, ConversationFile } from '../types/index'
-import { liveView } from './lib/chain'
+import { liveFile } from './lib/chain'
 import { markerWrites } from './lib/marker-diff'
 import { markers } from './lib/markers'
 
@@ -19,7 +19,8 @@ let sent: ReadonlyMap<string, string> = new Map()
  * Live exchanges only (`chain`): a rewound one gets no marker and doesn't split a thread run.
  */
 export async function publishMarkers($: EngineInterface, file: ConversationFile | null, chain: ChainView | null) {
-  const next = file ? markers(chain ? liveView(file, chain.hidden) : file) : {}
+  const live = liveFile(file, chain)
+  const next = live ? markers(live) : {}
   const r = markerWrites(sent, next)
   sent = r.sent
   await Promise.all(r.writes.map(w => update($, memberOf(markerA, { requestId: w.id }), () => w.marker)))

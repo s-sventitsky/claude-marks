@@ -68,6 +68,22 @@ export type ConversationFile = {
   }
 }
 
+/**
+ * Liveness and reachability of the loaded conversation's exchanges, recomputed from
+ * the transcript on load and after each relevant append; never stored in the file.
+ * Ids the transcript doesn't know yet (appended since the last read) are in no list:
+ * live and after the last compaction. Read it through `isLive` / `isReachable` in
+ * hooks/lib/chain.ts.
+ */
+export type ChainView = {
+  /** Exchanges off the active parentUuid chain (a rewind left them): kept, hidden. */
+  hidden: string[]
+  /** Exchanges before the last compact_boundary: the transcript can't jump to them. */
+  compacted: string[]
+  /** Exchanges the gap-on-load rule left unlabelled (the band's `N unlabelled`). */
+  unlabelled: string[]
+}
+
 /** One entry of the $.store index, keyed by sessionId. The store never holds the data itself. */
 export type StoreIndexEntry = { file: string; updatedAt: string }
 
@@ -80,6 +96,8 @@ declare module 'claude-code' {
       here: string | null
       /** Why the labeller stopped for this conversation (the engine refused its call); null = running. */
       labellerOff: string | null
+      /** Liveness and reachability (ticket 03); null before the first transcript read. */
+      chain: ChainView | null
     }
   }
 }

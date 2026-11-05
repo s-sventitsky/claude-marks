@@ -3,13 +3,16 @@
 // the data file on disk is the record.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
-import type { ConversationFile, StoreIndexEntry } from '../types/index'
+import type { ChainView, ConversationFile, StoreIndexEntry } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
+import { gapRun, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jsonl'
 import { buildDynamic, settle } from './lib/labeller'
 import { emptyFile, parseFile } from './lib/model'
 import { configDir, dataPath } from './lib/paths'
 import { RULES } from './lib/rules'
 import { promptText } from './lib/rows'
+import { findTranscript, readTail, readTranscript, type ReadStats } from './lib/transcript'
 import {
   onPrompt,
   onQueued,
@@ -27,6 +30,7 @@ import {
 const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
 const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
 const offA = atom({ plugin: 'marks', key: 'labellerOff' } as const, null)
+const chainA = atom({ plugin: 'marks', key: 'chain' } as const, null)
 
 const FLUSH_MS = 1000
 const SWITCH_CHECK_MS = 250
@@ -52,6 +56,25 @@ let lastStatus: string | null = null
 /** A conversation load in flight; steps wait for it so none applies to the old file. */
 let switching: Promise<void> | null = null
 
+// Ticket 03: the transcript pass, liveness and reachability.
+/** A prompt append waits this long before the transcript tail is read for it, then retries. */
+const TAIL_DELAY_MS = 250
+const TAIL_RETRY_MS = 500
+const TAIL_TRIES = 6
+/** The loaded conversation's transcript as last read. Lost on reload; the load reads it again. */
+let transcript: { sessionId: string; path?: string; t: Transcript; size: number } | null = null
+/** Exchanges the gap-on-load rule left unlabelled (the band's `N unlabelled`). */
+let unlabelled: string[] = []
+/** The chain view last published to $.state; the labeller and the status line read it. */
+let chainView: ChainView | null = null
+/** Transcript reads run one at a time. */
+let io: Promise<unknown> = Promise.resolve()
+const serial = <T,>(work: () => Promise<T>): Promise<T> => {
+  const p = io.then(work, work)
+  io = p.catch(() => undefined)
+  return p
+}
+
 const log = ($: EngineInterface, text: string) => $.ui.log(`marks: ${text}`, { to: 'debug' })
 
 const readConfig = async ($: EngineInterface) =>
@@ -75,7 +98,8 @@ const loadFile = async ($: EngineInterface, sessionId: string): Promise<{ file: 
 }
 
 const showStatus = ($: EngineInterface, file: ConversationFile | null) => {
-  const text = statusLine(file)
+  // Threads with no live exchange are hidden, so not counted.
+  const text = statusLine(file && chainView ? { ...file, threads: visibleThreads(liveView(file, chainView.hidden)) } : file)
   if (text === lastStatus) return
   lastStatus = text
   $.ui.status(text)
@@ -123,6 +147,9 @@ const sync = async ($: EngineInterface): Promise<void> => {
     if (tracked) await flush($)
     const { file, fromState } = await loadFile($, id)
     tracked = start(id, file)
+    transcript = null
+    unlabelled = []
+    chainView = null
     if (switched) {
       // The old conversation's queue, screen rows and labeller state go with it.
       queue = []
@@ -130,10 +157,14 @@ const sync = async ($: EngineInterface): Promise<void> => {
       lastHere = null
       await update($, hereA, () => null)
       await update($, offA, () => null)
+      await update($, chainA, () => null)
     }
     await publish($)
     // Back from $.state after a reload: a debounced write may have died with the old module.
     if (fromState && file.exchanges.length) scheduleFlush($)
+    // Off the hook path: read the transcript, rebuild what it holds, refill the labeller queue.
+    const fresh = file.exchanges.length === 0
+    $.clock.after(0, () => void guard($, 'transcript', () => rebuild($, id, fresh)))
   })()
   try {
     await switching
@@ -171,6 +202,83 @@ const guard = async ($: EngineInterface, what: string, work: () => Promise<void>
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
+const logRead = ($: EngineInterface, what: string, s: ReadStats) =>
+  log($, `${what}: ${s.via}${s.command ? ` (${s.command})` : ''}, ${s.size} bytes, ${s.pieces} pieces, ${s.ms} ms`)
+
+/** Liveness and reachability of the loaded conversation, into $.state when they change. */
+const publishChain = async ($: EngineInterface) => {
+  const tr = transcript
+  if (!tracked || !tr || tr.sessionId !== tracked.file.sessionId) return
+  const view = viewOf(tr.t, tracked.file, unlabelled)
+  if (JSON.stringify(view) === JSON.stringify(chainView)) return
+  chainView = view
+  await update($, chainA, () => view)
+  showStatus($, tracked.file)
+}
+
+/**
+ * The transcript pass (spec "Transcript pass"), once per conversation load, from a
+ * timer: reads the JSONL, adds exchanges for prompt rows the file lacks, fills the
+ * row index, publishes liveness, and refills the labeller queue by the gap rule.
+ * `fresh`: the file held no exchanges when loaded (the mod never tracked it).
+ */
+const rebuild = ($: EngineInterface, sessionId: string, fresh: boolean) =>
+  serial(async () => {
+    let t: Transcript | undefined
+    let path: string | undefined
+    let size = 0
+    if (config) {
+      try {
+        path = await findTranscript($, config, sessionId)
+        if (path) {
+          const read = emptyTranscript()
+          const stats = await readTranscript($, path, line => ingest(read, line))
+          logRead($, 'transcript', stats)
+          t = read
+          size = stats.size
+        } else log($, `no transcript for ${sessionId}`)
+      } catch (err) {
+        log($, `transcript read failed: ${String(err)}`)
+      }
+    }
+    while (switching) await switching
+    if (tracked?.file.sessionId !== sessionId) return
+    transcript = { sessionId, path: t ? path : undefined, t: t ?? emptyTranscript(), size }
+    await commit($, cur => {
+      const next = t ? { ...cur, ...mergeTurns(cur.file, cur.index, turnsOf(t)) } : cur
+      // Queued and running exchanges are tracked already: they are no gap.
+      const running = cur.turn.exchangeId ? [cur.turn.exchangeId] : []
+      const skip = [...(t ? viewOf(t, next.file, []).hidden : []), ...queue, ...running]
+      const gap = gapRun(next.file, skip, fresh)
+      unlabelled = gap.left
+      queue = [...gap.queue, ...queue]
+      return next
+    })
+    await publishChain($)
+  })
+
+/**
+ * Decision 5 (rewinds): an append carries no parentUuid, so after each prompt append
+ * the transcript's tail is read to place the prompt on its chain, and liveness is
+ * recomputed. A prompt not written yet is looked for again, up to TAIL_TRIES times.
+ */
+const placePrompt = ($: EngineInterface, uuid: string, tries = 1): Promise<void> =>
+  serial(async () => {
+    const tr = transcript
+    if (!tr?.path || tracked?.file.sessionId !== tr.sessionId) return
+    const { t, path } = tr
+    const r = await readTail($, path, tr.size, line => ingest(t, line))
+    const stats = r === 'reread' ? await readTranscript($, path, line => ingest(t, line)) : r
+    tr.size = stats.size
+    if (!t.pos.has(uuid)) {
+      if (tries < TAIL_TRIES) $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => placePrompt($, uuid, tries + 1)))
+      return
+    }
+    if (stats.via !== 'read') logRead($, 'tail', stats)
+    await commit($, cur => (cur.file.sessionId === tr.sessionId ? { ...cur, ...mergeTurns(cur.file, cur.index, turnsOf(t)) } : cur))
+    await publishChain($)
+  })
+
 /**
  * One labeller step, from the timer: the head of the queue gets one call, and its
  * outcome lands in the data file. Never runs inside a turn's dispatch, and never
@@ -186,7 +294,9 @@ const drain = async ($: EngineInterface) => {
     const id = queue[0]
     if (!t || id === undefined) return
     const ex = t.file.exchanges.find(x => x.id === id)
-    if (!ex || ex.label.status === 'done') {
+    // Live exchanges only: a rewound one waits (pending) in case the conversation returns to it.
+    const hidden = chainView?.hidden ?? []
+    if (!ex || ex.label.status === 'done' || hidden.includes(id)) {
       queue.shift()
       return
     }
@@ -196,7 +306,7 @@ const drain = async ($: EngineInterface) => {
       result = await $.model.complete({
         model: MODEL,
         effort: 'low',
-        prompt: [{ text: RULES, cache: true }, { text: buildDynamic(t.file, t.index, id) }],
+        prompt: [{ text: RULES, cache: true }, { text: buildDynamic(liveView(t.file, hidden), t.index, id) }],
         maxTokens: 400,
         timeoutMs: 15_000,
       })
@@ -212,9 +322,11 @@ const drain = async ($: EngineInterface) => {
     if (!result.isAnswered) log($, `labeller ${id}: ${result.reason}`)
     let retry = false
     await commit($, cur => {
-      const s = settle(cur.file, id, result, MODEL)
+      // Placed against the live chain (current thread, threads), then put back whole.
+      const view = liveView(cur.file, hidden)
+      const s = settle(view, id, result, MODEL)
       retry = s.retry
-      return { ...cur, file: s.file }
+      return { ...cur, file: view === cur.file ? s.file : mergeBack(cur.file, s.file) }
     })
     if (!retry) queue.shift()
   } finally {
@@ -272,6 +384,12 @@ export const register: Register = on => {
       if (e.door === 'prompt' && e.origin.kind === 'composer' && !e.message.isMeta) {
         const text = promptText(e.message.content)
         await commit($, t => onPrompt(t, e.uuid, text), true)
+        // A rewind shows only in the file: place the prompt on its chain from the transcript's tail.
+        $.clock.after(TAIL_DELAY_MS, () => void guard($, 'tail', () => placePrompt($, e.uuid)))
+      } else if (e.message.type === 'system' && e.message.name === 'compact_boundary') {
+        // Decision 6: matched on name; everything before it is now out of the transcript's reach.
+        if (transcript && transcript.sessionId === tracked?.file.sessionId) addBoundary(transcript.t, e.uuid)
+        await publishChain($)
       } else if (e.door === 'response' && e.message.type === 'assistant' && !e.message.isMeta) {
         await commit($, t => onResponse(t, e.uuid, e.message.content as unknown as readonly ResponseBlock[]))
       } else if (e.message.name === 'queued_command') {
@@ -320,10 +438,12 @@ export const register: Register = on => {
     const file = await read($, conv)
     const hereId = await read($, hereA)
     const off = await read($, offA)
-    const segments = band(file, {
+    const chain = await read($, chainA)
+    const left = unlabelledCount(file, chain)
+    const segments = band(file && chain ? liveView(file, chain.hidden) : file, {
       fullscreen: e.viewport?.isFullscreen === true,
       hereId,
-      hint: off ? `labeller off: ${off}` : HINT,
+      hint: off ? `labeller off: ${off}` : left ? `${left} unlabelled` : HINT,
     })
     if (!segments) return next(e)
     const { Box, Text } = $.ui.resolve(e)

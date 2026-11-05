@@ -1,6 +1,7 @@
 // The labeller's pure parts: the prompt it is sent, the reply it reads back,
 // and how a result lands in the data file. Spec "Labeller".
 import type { ConversationFile, Exchange } from '../../types/index'
+import { visibleThreads } from './chain'
 import { currentThread } from './model'
 import type { RowIndex } from './rows'
 
@@ -24,7 +25,7 @@ const replyOf = (ex: Exchange, index: RowIndex): string => {
 /**
  * The prompt's dynamic part for one exchange, as build() in
  * prototype-labeller/run.py: threads so far, the previous exchange, the exchange.
- * Liveness (ticket 03) will narrow threads and the previous exchange to live ones.
+ * Pass the live view (liveView in chain.ts) so threads and the previous exchange are live ones.
  */
 export const buildDynamic = (file: ConversationFile, index: RowIndex, exchangeId: string): string => {
   const at = file.exchanges.findIndex(x => x.id === exchangeId)
@@ -32,9 +33,11 @@ export const buildDynamic = (file: ConversationFile, index: RowIndex, exchangeId
   if (!ex) throw new Error(`no exchange ${exchangeId}`)
   const before = file.exchanges.slice(0, at)
   const current = currentThread(file, exchangeId)
+  // On a live view (liveView in chain.ts) a thread with no exchange left is hidden.
+  const visible = visibleThreads(file)
   const lines = ['## Threads so far']
-  if (!file.threads.length) lines.push('(none yet: this is the first exchange; use new_main)')
-  for (const t of file.threads) {
+  if (!visible.length) lines.push('(none yet: this is the first exchange; use new_main)')
+  for (const t of visible) {
     const kind = t.parent ? `sub of ${t.parent}` : 'main'
     const gists = before
       .filter(x => x.thread?.id === t.id && x.gist)

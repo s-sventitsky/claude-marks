@@ -136,6 +136,14 @@ describe('buildDynamic', () => {
     expect(out.find(l => l.startsWith("Claude's tool calls:"))).toBe("Claude's tool calls: " + Array.from({ length: 15 }, (_, i) => `Read f${i}`).join(', '))
   })
 
+  test('on a live view, threads with no exchange are left out; a main thread stays while a sub of it has one', () => {
+    // t3 and its sub t4 lost their exchanges to a rewind; t1 has none left but its sub t2 does.
+    const f = file([th('t1', 'A'), th('t2', 'B', 't1'), th('t3', 'C'), th('t4', 'D', 't3')], [ex('u2', 't2', 'b'), ex('u5', null)])
+    const lines = buildDynamic(f, {}, 'u5').split('\n')
+    expect(lines.slice(0, 3)).toEqual(['## Threads so far', '- t1 [main] "A": ', '- t2 [sub of t1] "B": b  <- current'])
+    expect(buildDynamic(file([th('t1', 'A')], [ex('u5', null)]), {}, 'u5')).toContain('(none yet: this is the first exchange; use new_main)')
+  })
+
   test('an exchange missing from the row index falls back to its excerpt and an empty reply', () => {
     const f = file([], [ex('u1', null)])
     expect(buildDynamic(f, {}, 'u1')).toContain('User: u1\n')

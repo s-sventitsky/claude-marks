@@ -139,12 +139,20 @@ const link = (t: Transcript, uuid: string, parent: string | null, isConversation
     if (t.parent.get(uuid) === undefined) t.parent.set(uuid, parent)
     return false
   }
-  t.pos.set(uuid, t.order.length)
-  t.order.push(uuid)
+  // Live boundaries still waiting for their own row end `order`: a row read now was written
+  // before them, unless it links to one of them.
+  const after = parent === null ? -1 : (t.pos.get(parent) ?? -1)
+  let at = t.order.length
+  while (at > after + 1 && isWaiting(t, t.order[at - 1] as string)) at--
+  t.order.splice(at, 0, uuid)
+  for (let i = at; i < t.order.length; i++) t.pos.set(t.order[i] as string, i)
   t.parent.set(uuid, parent)
   if (isConversation) t.newest = uuid
   return true
 }
+
+/** A boundary seen live whose own row the reads have not reached yet. */
+const isWaiting = (t: Transcript, uuid: string): boolean => t.rows.get(uuid)?.kind === 'boundary' && t.parent.get(uuid) === undefined
 
 const parseLine = (line: string): Json | undefined => {
   try {
@@ -163,7 +171,10 @@ const ingestParsed = (t: Transcript, r: Json) => {
   const row = rowOf(r)
   if (!row) return
   t.rows.set(r.uuid, row)
-  if (row.kind === 'boundary') t.boundaries.push(r.uuid)
+  if (row.kind === 'boundary') {
+    t.boundaries.push(r.uuid)
+    t.boundaries.sort((a, b) => (t.pos.get(a) ?? 0) - (t.pos.get(b) ?? 0))
+  }
 }
 
 /** Files one JSONL line into the transcript. A row seen before (by uuid) is left as it was. */
@@ -190,7 +201,10 @@ export const ingest = (t: Transcript, line: string): void => {
   if (r) ingestParsed(t, r)
 }
 
-/** A compact_boundary seen live (session.append): placed at the end, its link left to the next read. */
+/**
+ * A compact_boundary seen live (session.append): placed at the end, its link left to the next read.
+ * Rows the reads file before its own row arrives go in before it (see `link`).
+ */
 export const addBoundary = (t: Transcript, uuid: string): void => {
   if (t.pos.has(uuid)) return
   t.pos.set(uuid, t.order.length)

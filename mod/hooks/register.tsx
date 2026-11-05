@@ -5,7 +5,7 @@ import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ChainView, ConversationFile } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
-import { gapRun, isLive, liveFile, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { backOnChain, gapRun, isLive, liveFile, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
 import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jsonl'
 import { buildDynamic, settle } from './lib/labeller'
 import { dividerLine } from './lib/markers'
@@ -121,7 +121,9 @@ const sync = async ($: EngineInterface): Promise<void> => {
     const { file, fromState } = await loadFile($, config, id)
     tracked = start(file)
     transcript = null
-    unlabelled = []
+    // P5: the gap rule's record from the file alone until the transcript pass redoes it.
+    const fresh = file.exchanges.length === 0
+    unlabelled = gapRun(file, [], fresh).left
     chainView = null
     if (switched) {
       // The old conversation's queue, screen rows and labeller state go with it.
@@ -130,13 +132,13 @@ const sync = async ($: EngineInterface): Promise<void> => {
       lastHere = null
       await update($, hereA, () => null)
       await update($, offA, () => null)
-      await update($, chainA, () => null)
     }
+    // The record before the file: a drawing never sees the file without it.
+    await publishChain($)
     await publish($)
     // Back from $.state after a reload: a debounced write may have died with the old module.
     if (fromState && file.exchanges.length) scheduleFlush($)
     // Off the hook path: read the transcript, rebuild what it holds, refill the labeller queue.
-    const fresh = file.exchanges.length === 0
     $.clock.after(0, () => void guard($, 'transcript', () => rebuild($, id, fresh)))
   })()
   try {
@@ -190,10 +192,14 @@ const logRead = ($: EngineInterface, what: string, s: ReadStats) =>
 
 /** Liveness and reachability of the loaded conversation, into $.state when they change. */
 const publishChain = async ($: EngineInterface) => {
-  const tr = transcript
-  if (!tracked || !tr || tr.sessionId !== tracked.file.sessionId) return
-  const view = viewOf(tr.t, tracked.file, unlabelled)
+  if (!tracked) return
+  // Before the transcript pass (or with no transcript): nothing hidden or compacted yet.
+  const t = transcript?.sessionId === tracked.file.sessionId ? transcript.t : emptyTranscript()
+  const view = viewOf(t, tracked.file, unlabelled)
   if (JSON.stringify(view) === JSON.stringify(chainView)) return
+  // P1: exchanges a rewind hid while they waited go back to the labeller once their fork is live again.
+  const running = tracked.turn.exchangeId ? [tracked.turn.exchangeId] : []
+  queue.push(...backOnChain(tracked.file, chainView, view, [...queue, ...running]))
   chainView = view
   await update($, chainA, () => view)
   await publishMarkers($, tracked.file, chainView)

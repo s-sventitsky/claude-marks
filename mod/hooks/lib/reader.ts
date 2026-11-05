@@ -5,7 +5,7 @@ import { GLYPH, colorOf, threadPath, type Segment } from './band'
 import type { ViewOptions } from './model'
 import type { ExchangeRows } from './rows'
 import { REASON } from './pane'
-import { UNLABELLED, groupTree } from './tree'
+import { UNLABELLED, layoutFamilies } from './tree'
 
 export type ReaderOptions = ViewOptions & {
   /** Why the engine refused the last jump to this exchange (`Jump denied: …`). */
@@ -42,7 +42,7 @@ export type ReaderModel = {
 }
 
 export const readerModel = (file: ConversationFile, id: string, o: ReaderOptions): ReaderModel | undefined => {
-  const g = groupTree(file, o)
+  const g = layoutFamilies(file, o)
   const x = g.shown.find(y => y.id === id)
   const n = g.n.get(id)
   if (!x || n === undefined) return undefined

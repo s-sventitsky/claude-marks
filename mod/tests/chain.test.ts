@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { ConversationFile } from '../types/index'
-import { gapRun, isLive, isReachable, liveFile, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
+import { backOnChain, gapRun, isLive, isReachable, liveFile, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
 import { addBoundary, emptyTranscript, ingest } from '../hooks/lib/jsonl'
 import { addExchange, emptyFile } from '../hooks/lib/model'
 import * as J from './fixtures/jsonl'
@@ -202,6 +202,23 @@ describe('viewOf', () => {
     expect(viewOf(t, file('u1'), []).compacted).toEqual(['u1'])
   })
 
+  test('rows read after a live boundary but written before it stay before it; rows after its own row come after', () => {
+    const t = read(J.human('u1', null, 'a'), J.text('a1', 'u1', 'x'))
+    addBoundary(t, 'b1')
+    // The tail read catches up: u2 was written before the boundary.
+    for (const l of [J.human('u2', 'a1', 'late'), J.text('a2', 'u2', 'y'), J.boundary('b1', 'a2'), J.human('u3', 'b1', 'after')]) ingest(t, l)
+    const v = viewOf(t, file('u1', 'u2', 'u3'), [])
+    expect(v.compacted).toEqual(['u1', 'u2'])
+    expect(v.hidden).toEqual([])
+  })
+
+  test('a file boundary read while a live one waits keeps the live one last', () => {
+    const t = read(J.human('u1', null, 'a'))
+    addBoundary(t, 'b2')
+    for (const l of [J.boundary('b1', 'u1'), J.human('u2', 'b1', 'b')]) ingest(t, l)
+    expect(viewOf(t, file('u1', 'u2'), []).compacted).toEqual(['u1', 'u2'])
+  })
+
   test('carries the unlabelled ids it is given', () => {
     expect(viewOf(emptyTranscript(), file('u1'), ['u1']).unlabelled).toEqual(['u1'])
   })
@@ -235,6 +252,24 @@ describe('gapRun', () => {
 
   test('nothing after the last labelled one: nothing to do', () => {
     expect(gapRun(labelled(file('u1'), 'u1'), [], false)).toEqual({ queue: [], left: [] })
+  })
+})
+
+describe('backOnChain', () => {
+  const view = (hidden: string[], unlabelled: string[] = []) => ({ hidden, compacted: [], unlabelled })
+
+  test('exchanges hidden before and live now, still unlabelled, go back to the labeller, file order', () => {
+    const f = labelled(file('u1', 'u2', 'u3', 'u4'), 'u1')
+    expect(backOnChain(f, view(['u3', 'u2']), view(['u4']), [])).toEqual(['u2', 'u3'])
+  })
+
+  test('labelled, skipped (queued or running) and gap-rule-left ones stay out', () => {
+    const f = labelled(file('u1', 'u2', 'u3', 'u4'), 'u1')
+    expect(backOnChain(f, view(['u1', 'u2', 'u3', 'u4']), view([], ['u4']), ['u3'])).toEqual(['u2'])
+  })
+
+  test('no view before: nothing came back', () => {
+    expect(backOnChain(file('u1'), null, view([]), [])).toEqual([])
   })
 })
 

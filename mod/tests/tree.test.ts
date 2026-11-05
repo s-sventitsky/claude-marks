@@ -148,14 +148,14 @@ describe('tree liveness, pending and Unlabelled', () => {
     expect(rows.at(-1)?.segments.find(s => s.text === '…')?.dim).toBe(true)
   })
 
-  test('with no labelled exchange yet, pending exchanges form the Unlabelled group, still with …', () => {
+  test('with no labelled exchange yet, pending exchanges form the Unlabelled section, still with …', () => {
     const f = file([], [ex('a', null), ex('b', null)])
     expect(lines(layoutTree(f, WIDE))).toEqual(['Unlabelled  2', ' 1 …  excerpt a', ' 2 …  excerpt b'])
   })
 
-  test('a run of more than 10 unlabelled exchanges is a dim Unlabelled group, placed by its first exchange', () => {
+  test('the exchanges the gap rule left are a dim Unlabelled section, placed by its first exchange', () => {
     const f = file([th('t1', 'Login'), th('t2', 'Docs')], [ex('a', 't1'), ...nulls('n', 11), ex('z', 't2')])
-    const rows = layoutTree(f, WIDE)
+    const rows = layoutTree(f, { ...WIDE, unlabelled: nulls('n', 11).map(x => x.id) })
     expect(lines(rows).filter(l => !l.startsWith(' '))).toEqual(['Login  1 ex', 'Unlabelled  11', 'Docs  1 ex'])
     const head = rows.find(r => r.key === 'th:unlabelled') as TreeRow
     expect(head.kind).toBe('unlabelled')
@@ -171,16 +171,17 @@ describe('tree liveness, pending and Unlabelled', () => {
     expect(lines(rows)).toEqual(['Unlabelled  3', ' 1    excerpt a', ' 2    excerpt b', ' 3 …  excerpt c'])
   })
 
-  test('a trailing run of more than 10 is unlabelled too, not pending', () => {
+  test('a trailing run the gap rule left is unlabelled, not pending', () => {
     const f = file([th('t1', 'Login')], [ex('a', 't1'), ...nulls('n', 11)])
-    const rows = layoutTree(f, WIDE)
+    const rows = layoutTree(f, { ...WIDE, unlabelled: nulls('n', 11).map(x => x.id) })
     expect(lines(rows).slice(0, 3)).toEqual(['Login  1 ex', '  1    gist a', 'Unlabelled  11'])
     expect(rows.some(r => line(r).includes('…'))).toBe(false)
   })
 })
 
 describe('tree build cost', () => {
-  test('600 exchanges over 40 threads lay out in well under a frame', () => {
+  // Measured on mvp: ~5 ms a layout (ticket 04). The bound only catches a blow-up, not load noise.
+  test('600 exchanges over 40 threads lay out without a blow-up', () => {
     const threads = Array.from({ length: 40 }, (_, i) => th(`t${i + 1}`, `Thread ${i + 1}`, i % 4 ? `t${i - (i % 4) + 1}` : null))
     const exchanges = Array.from({ length: 600 }, (_, i) =>
       ex(`u${i}`, `t${(i % 40) + 1}`, `gist number ${i} with some words`, i % 7 ? [] : [{ kind: 'landmark', text: '' }]),
@@ -193,6 +194,6 @@ describe('tree build cost', () => {
     for (let i = 0; i < runs; i++) layoutTree(f, opts)
     const ms = (Date.now() - t0) / runs
     expect(layoutTree(f, opts)).toHaveLength(640)
-    expect(ms).toBeLessThan(10)
+    expect(ms).toBeLessThan(100)
   })
 })

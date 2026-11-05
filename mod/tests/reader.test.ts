@@ -56,10 +56,10 @@ describe('reader header', () => {
     expect([m?.n, m?.position, m?.familySize]).toEqual([3, 2, 2])
   })
 
-  test('the Unlabelled group: a dim `Unlabelled` path, counted over the group', () => {
+  test('the Unlabelled section: a dim `Unlabelled` path, counted over the section', () => {
     const xs = Array.from({ length: 12 }, (_, i) => ex(`u${i}`, null))
     const f = file([th('t1', 'Login')], [ex('a', 't1'), ...xs, ex('z', 't1')])
-    const m = readerModel(f, 'u3', FS)
+    const m = readerModel(f, 'u3', { ...FS, unlabelled: xs.map(x => x.id) })
     expect(m?.path).toEqual([{ text: 'Unlabelled', dim: true }])
     expect([m?.n, m?.position, m?.familySize]).toEqual([5, 4, 12])
   })

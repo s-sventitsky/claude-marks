@@ -158,7 +158,7 @@ describe('the reader', () => {
     await ui.redraw()
     expect(await ui.find({ type: 'Text', text: 'why does login fail?' })).toBeDefined()
     expect((await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text)).toEqual(['It was **the cookie**.'])
-    // Not labelled yet: the Unlabelled group is its family.
+    // Not labelled yet: the Unlabelled section is its family.
     expect(await ui.find({ type: 'Text', text: 'Unlabelled' })).toBeDefined()
   })
 

@@ -3,7 +3,7 @@
 import type { ChainView, ConversationFile, Exchange, Thread } from '../../types/index'
 import type { Transcript } from './jsonl'
 import { foldPrompt, newExchange } from './model'
-import { emptyRows, type ExchangeRows, type ReplyRow, type RowIndex } from './rows'
+import type { ExchangeRows, ReplyRow, RowIndex } from './rows'
 
 /**
  * The row a walk goes to from `uuid`. The parentUuid (a boundary's logicalParentUuid),
@@ -82,7 +82,7 @@ export const turnsOf = (t: Transcript): Turn[] => {
 }
 
 const mergeRows = (live: ExchangeRows | undefined, turn: Turn): ExchangeRows => {
-  const read: ExchangeRows = { ...emptyRows(), prompts: turn.prompts.map(p => p.text), replies: turn.replies, tools: turn.tools }
+  const read: ExchangeRows = { prompts: turn.prompts.map(p => p.text), replies: turn.replies, tools: turn.tools }
   if (!live) return read
   const seen = new Set(read.replies.map(r => r.uuid))
   return {
@@ -167,6 +167,18 @@ export const gapRun = (file: ConversationFile, hidden: readonly string[], fresh:
   if ((last < 0 && fresh) || run.length > GAP_MAX) return { queue: [], left: run }
   return { queue: run, left: [] }
 }
+
+/**
+ * Exchanges back on the active chain (hidden in `before`, live in `after`) that are still
+ * unlabelled: the labeller's again, file order. A rewind hid them while they waited (the
+ * drain drops hidden ones, the gap rule skips them); spec "Liveness": they reappear, pending
+ * until labelled. `skip`: queued and running ones. Ones the gap rule left stay left.
+ */
+export const backOnChain = (file: ConversationFile, before: ChainView | null, after: ChainView, skip: readonly string[]): string[] =>
+  file.exchanges
+    .filter(x => !x.thread && x.label.status !== 'done')
+    .map(x => x.id)
+    .filter(id => before?.hidden.includes(id) && isLive(after, id) && !skip.includes(id) && !after.unlabelled.includes(id))
 
 /** The file as the live chain sees it: hidden exchanges dropped, threads all kept (their colours hold). */
 export const liveView = (file: ConversationFile, hidden: readonly string[]): ConversationFile =>

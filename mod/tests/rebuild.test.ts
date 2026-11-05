@@ -116,6 +116,17 @@ describe('rebuild on load', () => {
     expect(await bandText($)).toBe('● Login · here #12/12 · 11 unlabelled')
   })
 
+  test('the gap record is published with the file, before the transcript pass', async ($, on) => {
+    const gap = Array.from({ length: 11 }, (_, i) => ex(`u${i + 2}`, false))
+    setup(on, { transcript: J.jsonl(...chat(12)), data: data(ex('u1', true), ...gap) })
+    await $.session.start(SESSION_START)
+    // No clock advance: the transcript pass has not run.
+    const ui = await $.ui.mount({ ...BAND, component: 'Pane', requestId: 'marks', props: { title: 'marks', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 14 }, view: {} } } as any)
+    const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text).join('\n')
+    expect(texts).toContain('Unlabelled')
+    expect(texts).not.toContain('…')
+  })
+
   test('no transcript found: the tracked file is still gap-checked', async ($, on) => {
     const s = setup(on, { data: data(ex('u1', true), ex('u2', false)) })
     await $.session.start(SESSION_START)
@@ -177,6 +188,43 @@ describe('liveness after load', () => {
     expect(dyn).toContain('## Exchange to place\nUser: prompt 3\n')
     expect(dyn).toContain('## Previous exchange (context only)\nUser: prompt 1\n')
     expect(fileOf(s.w, 's1')?.exchanges.map(x => x.label.status)).toEqual(['done', 'pending', 'done'])
+  })
+
+  test('a rewound exchange left pending is labelled once the conversation returns to its fork', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(2), J.human('u3', 'a1', 'prompt 3'), J.text('a3', 'u3', 'reply 3')), data: data(ex('u1', true), ex('u2', false)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(1500)
+    expect(s.calls).toHaveLength(1)
+    // Back on u2's fork: the new prompt hangs off a2.
+    s.setTranscript(J.jsonl(...chat(2), J.human('u3', 'a1', 'prompt 3'), J.text('a3', 'u3', 'reply 3'), J.human('u4', 'a2', 'prompt 4')))
+    await $.session.append(prompt('u4', 'prompt 4') as any)
+    await s.clock.advance(2000)
+    expect(chainOf(s.w)?.hidden).toEqual(['u3'])
+    expect(s.calls).toHaveLength(2)
+    expect(s.calls[1].promptBlocks[1].text).toContain('## Exchange to place\nUser: prompt 2\n')
+    expect(fileOf(s.w, 's1')?.exchanges.find(x => x.id === 'u2')?.label.status).toBe('done')
+  })
+
+  test('a queued exchange the drain dropped while rewound is labelled when its fork is live again', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(1)), data: data(ex('u1', true)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(100)
+    // u2 runs and completes; a rewind to a1 (u3) hides it before the drain gets to it.
+    s.setTranscript(J.jsonl(...chat(2)))
+    await $.session.append(prompt('u2', 'prompt 2') as any)
+    await $.turn.start({ text: 'prompt 2', turnId: 'r2' } as any)
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 'r2', reason: 'answer' } as any)
+    s.setTranscript(J.jsonl(...chat(2), J.human('u3', 'a1', 'prompt 3')))
+    await $.session.append(prompt('u3', 'prompt 3') as any)
+    await s.clock.advance(300)
+    expect(chainOf(s.w)?.hidden).toEqual(['u2'])
+    await s.clock.advance(1000)
+    expect(s.calls).toHaveLength(0)
+    s.setTranscript(J.jsonl(...chat(2), J.human('u3', 'a1', 'prompt 3'), J.human('u4', 'a2', 'prompt 4')))
+    await $.session.append(prompt('u4', 'prompt 4') as any)
+    await s.clock.advance(2000)
+    expect(chainOf(s.w)?.hidden).toEqual(['u3'])
+    expect(fileOf(s.w, 's1')?.exchanges.find(x => x.id === 'u2')?.label.status).toBe('done')
   })
 
   test('a live compact_boundary makes the exchanges before it unreachable', async ($, on) => {

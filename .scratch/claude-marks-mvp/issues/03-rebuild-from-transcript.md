@@ -16,7 +16,7 @@
 
 ## Comments
 
-Implemented on branch `mvp-03` (2026-11-05). The spawn and `cmd /c type` costs were measured (below). The three checks that need a real terminal are listed as manual checks.
+Implemented on branch `mvp-03` (2026-11-05). The spawn and `cmd /c type` costs were measured (below). The four checks that need a real terminal are listed as manual checks.
 
 Where things are:
 - `mod/hooks/lib/jsonl.ts` (pure): `slug`, `transcriptPath`, `lineSplitter`, `keep` (the prefilter), `ingest(t, line)` into a `Transcript` (`order`, `pos`, `parent`, `rows`, `newest`, `boundaries`), `addBoundary`, `gitRootOf`, `catCommands`. Tests: `mod/tests/jsonl.test.ts`, with synthetic line builders in `mod/tests/fixtures/jsonl.ts`.
@@ -29,6 +29,7 @@ Where things are:
   - The drain, the band and the status line read the live view.
   - New `$.state` key `marks.chain`: `ChainView | null` = `{ hidden, compacted, unlabelled }` (exchange ids), declared in `mod/types/index.d.ts`.
   - Plugin tests: `mod/tests/rebuild.test.ts`.
+- Merge of `mvp` (04, 07) wired their TODO(03)s to the chain view: `publishMarkers` and the band click take `liveView`; `pane.tsx` passes `isLive`, `isReachable` (unknown viewport counts as fullscreen) and `unlabelled` to `layoutTree`, `isLive` to `openTarget`, and `isReachable(view, id, true)` to `enterAction`. `layoutTree` gained `unlabelled` (the gap rule's record): given, every other unlabelled exchange is pending.
 
 Deviations and decisions:
 - **The `parentUuid` walk needs a bridge.** A strict walk from the newest row hid 460 of 870 prompts across the 77 local transcripts, for two reasons. The engine links rows to uuids it never writes (`away_summary` rows, prompts after a resume). And new-format boundaries point `logicalParentUuid` forward, to the preserved tail after the summary. The fix is the rule in `stepBack`: a parent missing from the file, one later in the file, or a boundary with none continues at the previous row in file order. With the bridge, 2 of 925 turns are hidden across all 77 transcripts. Both are real rewinds: two prompts with the same parent, 16 s and 42 s apart.

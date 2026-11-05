@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { afterSettle, enqueue, headStep, waiting } from '../hooks/lib/queue'
+import { afterSettle, enqueue, headStep, refill, requeue, settleLive, waiting } from '../hooks/lib/queue'
 import { emptyFile } from '../hooks/lib/model'
-import type { ConversationFile, Exchange } from '../types/index'
+import type { ChainView, ConversationFile, Exchange } from '../types/index'
 
 const ex = (id: string, done = false): Exchange => ({
   id,
@@ -47,5 +47,50 @@ describe('labeller queue: adding and waiting', () => {
   test('waiting: the queued exchanges, then the running turn’s', () => {
     expect(waiting(['u1', 'u2'], 'u3')).toEqual(['u1', 'u2', 'u3'])
     expect(waiting(['u1'], undefined)).toEqual(['u1'])
+  })
+})
+
+const view = (hidden: string[], unlabelled: string[] = []): ChainView => ({ hidden, compacted: [], unlabelled })
+
+describe('labeller queue: the gap rule on load', () => {
+  test('a short unlabelled run after the last label goes ahead of what was queued', () => {
+    const f = file(ex('u1', true), ex('u2'), ex('u3'), ex('u4'))
+    expect(refill(f, { queue: ['u4'], running: null, hidden: [], fresh: false })).toEqual({ queue: ['u2', 'u3', 'u4'], unlabelled: [] })
+  })
+
+  test('hidden, queued and running exchanges are no gap', () => {
+    const f = file(ex('u1', true), ex('u2'), ex('u3'), ex('u4'), ex('u5'))
+    expect(refill(f, { queue: ['u4'], running: 'u5', hidden: ['u2'], fresh: false })).toEqual({ queue: ['u3', 'u4'], unlabelled: [] })
+  })
+
+  test('a run of more than 10, or a conversation never tracked, is left unlabelled', () => {
+    const long = file(ex('u0', true), ...Array.from({ length: 11 }, (_, i) => ex(`v${i}`)))
+    expect(refill(long, { queue: [], running: null, hidden: [], fresh: false }).unlabelled).toHaveLength(11)
+    expect(refill(file(ex('u1'), ex('u2')), { queue: [], running: null, hidden: [], fresh: true })).toEqual({ queue: [], unlabelled: ['u1', 'u2'] })
+  })
+})
+
+describe('labeller queue: back on the chain', () => {
+  test('a pending exchange a rewind hid joins the end when its fork is live again, unless queued or running', () => {
+    const f = file(ex('u1'), ex('u2'), ex('u3'))
+    expect(requeue(f, ['u3'], null, view(['u1', 'u2']), view([]))).toEqual(['u3', 'u1', 'u2'])
+    expect(requeue(f, ['u3'], 'u2', view(['u1', 'u2']), view([]))).toEqual(['u3', 'u1'])
+    expect(requeue(f, [], null, view([]), view([]))).toEqual([])
+  })
+})
+
+describe('labeller queue: settling on the live chain', () => {
+  const answer = '{"thread":{"action":"new_main","label":"Login"},"bookmarks":[],"gist":"bug found"}'
+
+  test('the outcome is placed against the live exchanges; the hidden ones are kept as they were', () => {
+    const r = settleLive(file(ex('u1'), ex('u2')), ['u1'], 'u2', { isAnswered: true, text: answer }, 'haiku')
+    expect(r.retry).toBe(false)
+    expect(r.file.exchanges.map(x => x.id)).toEqual(['u1', 'u2'])
+    expect(r.file.exchanges[0]?.label.status).toBe('pending')
+    expect(r.file.exchanges[1]?.label.status).toBe('done')
+  })
+
+  test('an unanswered call is retried', () => {
+    expect(settleLive(file(ex('u1')), [], 'u1', { isAnswered: false, reason: 'api-error' }, 'haiku').retry).toBe(true)
   })
 })

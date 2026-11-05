@@ -33,10 +33,13 @@ export async function readWhole($: EngineInterface, config: string | undefined, 
   return { sessionId, t: emptyTranscript(), size: 0 }
 }
 
-/** Reads what was appended to `tr`'s file since its last read into `tr.t` (the whole file again when the tail can't be trusted). */
-export async function readNew($: EngineInterface, tr: LoadedTranscript & { path: string }): Promise<ReadStats> {
-  const r = await readTail($, tr.path, tr.size, line => ingest(tr.t, line))
-  const stats = r === 'reread' ? await readTranscript($, tr.path, line => ingest(tr.t, line)) : r
+/**
+ * Reads what was appended to `tr`'s file (`path`, its own) since its last read into `tr.t`,
+ * the whole file again when the tail can't be trusted, and moves `tr.size` on.
+ */
+export async function readNew($: EngineInterface, tr: LoadedTranscript, path: string): Promise<ReadStats> {
+  const r = await readTail($, path, tr.size, line => ingest(tr.t, line))
+  const stats = r === 'reread' ? await readTranscript($, path, line => ingest(tr.t, line)) : r
   tr.size = stats.size
   return stats
 }

@@ -1,7 +1,7 @@
 // Manual bookmarks (ticket 06): `/mark [#n] [note]` and the reader's `m` menu. Pure.
 import type { Bookmark, ConversationFile, Correction, Exchange } from '../../types/index'
 import { GLYPH } from './band'
-import { excerptOf } from './model'
+import { exchangeById, excerptOf, liveExchanges, withExchange, type IsLive } from './model'
 import type { ExchangeRows } from './rows'
 
 export const MARK_USAGE = 'usage: /mark [#n] [note]'
@@ -14,10 +14,10 @@ export type MarkArgs = { target: 'latest' | number; note?: string }
 export const parseMark = (args: string): MarkArgs | undefined => {
   const s = args.trim()
   if (!s.startsWith('#')) return s ? { target: 'latest', note: s } : { target: 'latest' }
-  const m = /^#(\d+)(?:\s+([\s\S]*))?$/.exec(s)
-  const n = m ? Number(m[1]) : 0
-  if (!m || !Number.isSafeInteger(n) || n < 1) return undefined
-  const note = m[2]?.trim()
+  const match = /^#(\d+)(?:\s+([\s\S]*))?$/.exec(s)
+  const n = match ? Number(match[1]) : 0
+  if (!match || !Number.isSafeInteger(n) || n < 1) return undefined
+  const note = match[2]?.trim()
   return note ? { target: n, note } : { target: n }
 }
 
@@ -28,8 +28,11 @@ export type MarkOptions = {
   /** The row index entry of an exchange (prompt texts, reply text rows). */
   rowsOf: (id: string) => ExchangeRows | undefined
   /** Hidden when false, as the tree counts. Absent: all live. */
-  isLive?: (x: Exchange) => boolean
+  isLive?: IsLive
 }
+
+/** `{ row }` when the bookmark sits on a reply row; `{}` on the prompt row (no `row` key stored). */
+const onRow = (row: string | undefined): { row?: string } => (row === undefined ? {} : { row })
 
 /**
  * A bookmark's text without a note: ~80 chars of the message (the reply text block it
@@ -45,7 +48,7 @@ export const fallbackText = (x: Exchange, rows: ExchangeRows | undefined, row?: 
  * (the prompt row while it has none). `#n`: the tree's exchange n, on its prompt row.
  */
 export const planMark = (file: ConversationFile, a: MarkArgs, o: MarkOptions): MarkPlan | { error: string } => {
-  const live = o.isLive ? file.exchanges.filter(o.isLive) : file.exchanges
+  const live = liveExchanges(file, o.isLive)
   if (!live.length) return { error: NO_EXCHANGE }
   const n = a.target === 'latest' ? live.length : a.target
   const x = live[n - 1]
@@ -53,7 +56,7 @@ export const planMark = (file: ConversationFile, a: MarkArgs, o: MarkOptions): M
   const rows = o.rowsOf(x.id)
   const row = a.target === 'latest' ? rows?.replies.at(-1)?.uuid : undefined
   const text = a.note ?? fallbackText(x, rows, row)
-  return row === undefined ? { exchange: x.id, n, text } : { exchange: x.id, n, row, text }
+  return { exchange: x.id, n, ...onRow(row), text }
 }
 
 /** `corrections[]` keeps the newest this many. */
@@ -62,28 +65,17 @@ export const CORRECTIONS_MAX = 10
 /** The exchange's manual bookmark, if it has one. */
 export const manualOf = (x: Exchange): Bookmark | undefined => x.bookmarks.find(b => b.kind === 'manual')
 
-const withExchange = (file: ConversationFile, id: string, fn: (x: Exchange) => Exchange): ConversationFile => {
-  const i = file.exchanges.findIndex(x => x.id === id)
-  const x = file.exchanges[i]
-  if (!x) return file
-  const next = fn(x)
-  if (next === x) return file
-  const exchanges = file.exchanges.slice()
-  exchanges[i] = next
-  return { ...file, exchanges }
-}
-
 /**
  * Puts the exchange's one manual bookmark on `row` (absent = the prompt row), replacing
  * any it had, first in its list so its glyph leads; logs a `bookmark_add` (newest 10 kept).
  */
 export const setManual = (file: ConversationFile, id: string, b: { row?: string; text: string }, at: string): ConversationFile => {
   const next = withExchange(file, id, x => {
-    const mark: Bookmark = b.row === undefined ? { kind: 'manual', text: b.text } : { kind: 'manual', row: b.row, text: b.text }
+    const mark: Bookmark = { kind: 'manual', ...onRow(b.row), text: b.text }
     return { ...x, bookmarks: [mark, ...x.bookmarks.filter(k => k.kind !== 'manual')] }
   })
   if (next === file) return file
-  const add: Correction = b.row === undefined ? { kind: 'bookmark_add', exchange: id, at } : { kind: 'bookmark_add', exchange: id, row: b.row, at }
+  const add: Correction = { kind: 'bookmark_add', exchange: id, ...onRow(b.row), at }
   return { ...next, corrections: [...next.corrections, add].slice(-CORRECTIONS_MAX) }
 }
 
@@ -96,14 +88,18 @@ export const noteManual = (file: ConversationFile, id: string, note: string): Co
   const text = note.trim()
   if (!text) return file
   return withExchange(file, id, x => {
-    const m = manualOf(x)
-    return m ? { ...x, bookmarks: x.bookmarks.map(k => (k === m ? { ...m, text } : k)) } : x
+    const manual = manualOf(x)
+    return manual ? { ...x, bookmarks: x.bookmarks.map(k => (k === manual ? { ...manual, text } : k)) } : x
   })
 }
 
 /** The menu value of "the whole exchange" (the prompt row); a reply block's is `row:<uuid>`. */
 export const WHOLE = 'whole'
 const ROW = 'row:'
+/** The menu value of reply row `row`, or of the whole exchange when absent. */
+export const menuValue = (row: string | undefined): string => (row === undefined ? WHOLE : ROW + row)
+/** The reply row a menu value names; undefined for the whole exchange. */
+export const rowOfMenuValue = (value: string): string | undefined => (value.startsWith(ROW) ? value.slice(ROW.length) : undefined)
 const MENU_TEXT_MAX = 60
 
 /**
@@ -112,9 +108,10 @@ const MENU_TEXT_MAX = 60
  * to the prompt row). Undefined without a manual bookmark.
  */
 export const heldValue = (x: Exchange, rows: ExchangeRows | undefined): string | undefined => {
-  const m = manualOf(x)
-  if (!m) return undefined
-  return m.row !== undefined && rows?.replies.some(r => r.uuid === m.row) ? ROW + m.row : WHOLE
+  const manual = manualOf(x)
+  if (!manual) return undefined
+  const row = manual.row
+  return menuValue(row !== undefined && rows?.replies.some(r => r.uuid === row) ? row : undefined)
 }
 
 const MENU = 'mark:menu:'
@@ -132,15 +129,15 @@ export const menuTarget = (element: string): { kind: 'pick' | 'note'; id: string
 
 /** Where a jump to the exchange's manual bookmark goes: its reply row while the index knows it, else the prompt row. */
 export const anchorOf = (x: Exchange, rows: ExchangeRows | undefined): string => {
-  const at = heldValue(x, rows)
-  return at?.startsWith(ROW) ? at.slice(ROW.length) : x.id
+  const held = heldValue(x, rows)
+  return (held === undefined ? undefined : rowOfMenuValue(held)) ?? x.id
 }
 
 /** The reader's `m` menu: each reply text block (first ~60 chars), then the whole exchange; ◆ on the one holding the bookmark. */
 export const markMenu = (x: Exchange, rows: ExchangeRows | undefined): { value: string; label: string }[] => {
   const held = heldValue(x, rows)
   const entry = (value: string, text: string) => ({ value, label: `${value === held ? GLYPH.manual : ' '} ${text}` })
-  return [...(rows?.replies ?? []).map(r => entry(ROW + r.uuid, excerptOf(r.text, MENU_TEXT_MAX))), entry(WHOLE, 'the whole exchange')]
+  return [...(rows?.replies ?? []).map(r => entry(menuValue(r.uuid), excerptOf(r.text, MENU_TEXT_MAX))), entry(menuValue(undefined), 'the whole exchange')]
 }
 
 /**
@@ -148,23 +145,21 @@ export const markMenu = (x: Exchange, rows: ExchangeRows | undefined): { value: 
  * bookmark moves there with the fallback text (logged as an add), and a note is asked for.
  */
 export const pickMark = (file: ConversationFile, id: string, value: string, rows: ExchangeRows | undefined, at: string): { file: ConversationFile; askNote: boolean } => {
-  const x = file.exchanges.find(y => y.id === id)
+  const x = exchangeById(file, id)
   if (!x) return { file, askNote: false }
   if (value === heldValue(x, rows)) return { file: removeManual(file, id), askNote: false }
-  const row = value.startsWith(ROW) ? value.slice(ROW.length) : undefined
-  return { file: setManual(file, id, row === undefined ? { text: fallbackText(x, rows) } : { row, text: fallbackText(x, rows, row) }, at), askNote: true }
+  const row = rowOfMenuValue(value)
+  return { file: setManual(file, id, { ...onRow(row), text: fallbackText(x, rows, row) }, at), askNote: true }
 }
 
 /** `/mark`'s confirmation: `◆ #14 "chose JSON schema"`. */
 export const markLine = (n: number, text: string): string => `${GLYPH.manual} #${n} "${text}"`
 
 /** `/mark <args>` on the loaded file: the file after it, and the one line to show (the confirmation, or usage). */
-export const runMark = <F extends ConversationFile | null>(file: F, args: string, o: MarkOptions, at: string): { file: F; say: string } => {
+export const runMark = (file: ConversationFile, args: string, o: MarkOptions, at: string): { file: ConversationFile; say: string } => {
   const a = parseMark(args)
   if (!a) return { file, say: MARK_USAGE }
-  if (!file) return { file, say: NO_EXCHANGE }
   const plan = planMark(file, a, o)
   if ('error' in plan) return { file, say: plan.error }
-  const b = plan.row === undefined ? { text: plan.text } : { row: plan.row, text: plan.text }
-  return { file: setManual(file, plan.exchange, b, at) as F, say: markLine(plan.n, plan.text) }
+  return { file: setManual(file, plan.exchange, { ...onRow(plan.row), text: plan.text }, at), say: markLine(plan.n, plan.text) }
 }

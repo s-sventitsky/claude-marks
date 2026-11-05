@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { catCommands, emptyTranscript, gitRootOf, ingest, keep, lineSplitter, slug, transcriptPath } from '../hooks/lib/jsonl'
+import { catCommands, emptyTranscript, gitRootOf, ingest, lineSplitter, worthParsing, slug, transcriptPath } from '../hooks/lib/jsonl'
 import * as J from './fixtures/jsonl'
 
 const read = (...lines: string[]) => {
@@ -61,17 +61,17 @@ describe('line splitter', () => {
 
 describe('prefilter', () => {
   test('keeps user rows without tool results, assistant rows, boundaries and queued commands', () => {
-    expect(keep(J.human('u1', null, 'hi'))).toBe(true)
-    expect(keep(J.text('a1', 'u1', 'hello'))).toBe(true)
-    expect(keep(J.boundary('b1', 'a1'))).toBe(true)
-    expect(keep(J.queued('q1', 'a1', 'more'))).toBe(true)
-    expect(keep(J.toolResult('r1', 'a1'))).toBe(false)
-    expect(keep(J.attachment('x1', 'a1', { type: 'date' }))).toBe(false)
-    expect(keep(J.system('s1', 'a1', 'turn_duration'))).toBe(false)
+    expect(worthParsing(J.human('u1', null, 'hi'))).toBe(true)
+    expect(worthParsing(J.text('a1', 'u1', 'hello'))).toBe(true)
+    expect(worthParsing(J.boundary('b1', 'a1'))).toBe(true)
+    expect(worthParsing(J.queued('q1', 'a1', 'more'))).toBe(true)
+    expect(worthParsing(J.toolResult('r1', 'a1'))).toBe(false)
+    expect(worthParsing(J.attachment('x1', 'a1', { type: 'date' }))).toBe(false)
+    expect(worthParsing(J.system('s1', 'a1', 'turn_duration'))).toBe(false)
   })
 
   test('a prompt that mentions tool_result in its text is still kept', () => {
-    expect(keep(J.human('u1', null, 'why is "tool_result" empty?'))).toBe(true)
+    expect(worthParsing(J.human('u1', null, 'why is "tool_result" empty?'))).toBe(true)
   })
 })
 

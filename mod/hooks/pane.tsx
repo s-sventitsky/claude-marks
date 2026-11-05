@@ -227,7 +227,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
                 {s.text}
               </Text>
             ))}
-            <Text dimColor wrap="truncate">{` · #${reader.n} · ${reader.i} of ${reader.k} in thread`}</Text>
+            <Text dimColor wrap="truncate">{` · #${reader.n} · ${reader.position} of ${reader.familySize} in thread`}</Text>
           </Box>
           {reader.reason ? <Text color="warning">{reader.reason}</Text> : null}
           {reader.bookmarks.map(b =>

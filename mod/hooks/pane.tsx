@@ -8,6 +8,7 @@ import { isLive, isReachable } from './lib/chain'
 import {
   PANE_ID,
   PANE_ROWS,
+  REASON,
   afterJump,
   bandTarget,
   enterAction,
@@ -24,6 +25,7 @@ import {
 import { readerModel } from './lib/reader'
 import type { ExchangeRows } from './lib/rows'
 import { layoutTree } from './lib/tree'
+import { fixMode, noteMode, readMode } from './mode'
 
 const paneA = atom({ plugin: 'marks', key: 'pane' } as const, { target: null, lastJump: null, view: { kind: 'tree' } } as PaneState)
 // The engine's scan wants each atom a module reads as a const of that file: these two
@@ -98,7 +100,8 @@ async function showTree($: EngineInterface, id: string) {
  * press (a transcript row moves only while answering the person's input), then close
  * and remember. Unreachable, the main screen, or a denied jump: the reader instead.
  */
-async function enter($: EngineInterface, id: string, fullscreen: boolean | undefined) {
+async function enter($: EngineInterface, id: string, seen: boolean | undefined) {
+  const fullscreen = await readMode($, seen)
   const file = await read($, conv)
   const act = file && enterAction(file, id, { fullscreen, isReachable: reachOf(await read($, chainA), true) })
   if (!act) return
@@ -122,6 +125,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
   // Returns no text: a command's text is a transcript row the model reads.
   // Usage goes to a toast for the same reason (decision 9).
   on('command.run', { command: 'marks' }, async ($, e) => {
+    await fixMode($, e.presentation?.isFullscreen)
     const usage = marksUsage(e.args)
     if (usage) {
       $.ui.toast(usage)
@@ -162,7 +166,8 @@ export function registerPane(on: On, rowsOf: RowsOf) {
     const hereId = await read($, hereA)
     const chain = await read($, chainA)
     const { Box, Text, Button, Markdown } = $.ui.resolve(e)
-    const fullscreen = e.viewport?.isFullscreen
+    noteMode(e.viewport?.isFullscreen)
+    const fullscreen = await readMode($, e.viewport?.isFullscreen)
     const W = e.props.bodyColumns
     const isLiveX = liveOf(chain)
     // Unknown viewport (undefined) counts as fullscreen, as Enter tries the jump then.
@@ -233,10 +238,13 @@ export function registerPane(on: On, rowsOf: RowsOf) {
       )
     }
 
+    // The main screen's standing footer (spec "Main screen"), above the key line.
+    const footer = fullscreen === false ? <Text dimColor>{REASON.mainScreen}</Text> : null
     if (!file || !file.exchanges.length) {
       return (
         <Box flexDirection="column">
           <Text dimColor>No exchanges yet.</Text>
+          {footer}
           {keyLine(treeKeys({ fullscreen }), {})}
         </Box>
       )
@@ -266,6 +274,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
             ))}
           </Button>
         ))}
+        {footer}
         {keyLine(treeKeys({ fullscreen }), { p: readFocused })}
       </Box>
     )

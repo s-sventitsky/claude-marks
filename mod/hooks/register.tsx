@@ -10,6 +10,7 @@ import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jso
 import { buildDynamic, settle } from './lib/labeller'
 import { dividerLine, markers } from './lib/markers'
 import { emptyFile, parseFile } from './lib/model'
+import { fixMode, noteMode, readMode } from './mode'
 import { openFromBand, registerMarksCommand, registerPane } from './pane'
 import { configDir, dataPath } from './lib/paths'
 import { RULES } from './lib/rules'
@@ -375,6 +376,7 @@ const updateHere = async ($: EngineInterface) => {
 }
 
 const tick = ($: EngineInterface) => {
+  void guard($, 'mode', () => fixMode($))
   void guard($, 'here', () => updateHere($))
   void guard($, 'labeller', () => drain($))
 }
@@ -467,20 +469,21 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    noteMode(e.viewport?.isFullscreen)
     if (e.props.hasSurvey) return next(e)
+    const fullscreen = (await readMode($, e.viewport?.isFullscreen)) === true
     const file = await read($, conv)
     const hereId = await read($, hereA)
     const off = await read($, offA)
     const chain = await read($, chainA)
     const left = unlabelledCount(file, chain)
     const segments = band(file && chain ? liveView(file, chain.hidden) : file, {
-      fullscreen: e.viewport?.isFullscreen === true,
+      fullscreen,
       hereId,
       hint: off ? `labeller off: ${off}` : left ? `${left} unlabelled` : HINT,
     })
     if (!segments) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
-    const fullscreen = e.viewport?.isFullscreen === true
     // The whole band is one Button: a click opens the pane on the band's exchange (ticket 04).
     return (
       <Box flexDirection="row" width={e.props.bodyColumns}>
@@ -500,8 +503,10 @@ export const register: Register = on => {
   // row, so nothing moves; the divider over the blank spacer row 0, the glyph over `>` on row 1.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     noteOnScreen(e.requestId, e.props.onScreen)
-    if (e.requestId === 'placeholder' || e.props.isExpanded || e.viewport?.isFullscreen !== true || e.props.origin.kind !== 'composer')
-      return next(e)
+    noteMode(e.viewport?.isFullscreen)
+    // No markers on the main screen (ticket 08): its scrollback is frozen before labels land.
+    if (e.requestId === 'placeholder' || e.props.isExpanded || e.props.origin.kind !== 'composer' || !e.viewport) return next(e)
+    if ((await readMode($, e.viewport?.isFullscreen)) !== true) return next(e)
     // Read before drawing: the row redraws when its marker is written (a label landing).
     const m = await read($, memberOf(markerA, e))
     const inner = await next(e)
@@ -528,6 +533,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     noteOnScreen(e.requestId, e.props.onScreen)
+    noteMode(e.viewport?.isFullscreen)
     return next(e)
   })
 

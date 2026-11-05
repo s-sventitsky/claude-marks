@@ -128,6 +128,8 @@ declare module 'claude-code' {
       pane: PaneState
       /** Inline marker per prompt row (exchange id); null = none. Written only when it changes. */
       marker: StateFamily<Marker | null>
+      /** The session's mode (ticket 08): true fullscreen, false the main screen, null not heard yet. Set once. */
+      fullscreen: boolean | null
     }
   }
 }

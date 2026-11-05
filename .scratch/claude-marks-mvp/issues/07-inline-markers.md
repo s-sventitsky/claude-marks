@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Label new turns)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] Where the thread changes between consecutive live exchanges, a `── label ───` divider (`── └ label ───` for a sub-thread) in the thread's colour is drawn over the blank spacer row above the prompt. It is not sticky.
 - [x] The exchange's first bookmark glyph replaces `>` on the prompt line, in the thread's colour.

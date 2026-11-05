@@ -1,0 +1,6 @@
+{
+  "name": "marks-local",
+  "owner": { "name": "Sergey Sventitsky" },
+  "description": "The marks mod from this working copy.",
+  "plugins": [{ "name": "marks", "source": "./mod" }]
+}

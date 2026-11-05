@@ -1,5 +1,5 @@
 // The in-memory row index: per exchange, its prompt texts, reply text rows and tool lines.
-// Never persisted (no transcript text is stored); rebuilt from the transcript on load (ticket 03).
+// Never persisted (the data file keeps only excerpts and bookmark texts); rebuilt from the transcript on load (ticket 03).
 
 export type ReplyRow = { uuid: string; text: string }
 export type ExchangeRows = { prompts: string[]; replies: ReplyRow[]; tools: string[] }
@@ -34,6 +34,18 @@ export const promptText = (content: unknown): string => {
     .map(b => b.text)
     .join('\n')
 }
+
+/** A content block of an assistant row, as the transcript and `session.append` carry it. */
+export type ResponseBlock = { type: string; text?: string; name?: string; input?: unknown }
+
+/** An assistant row's text blocks joined, and one tool line per tool call. */
+export const replyParts = (blocks: readonly ResponseBlock[]): { text: string; tools: string[] } => ({
+  text: blocks
+    .filter(b => b?.type === 'text' && typeof b.text === 'string')
+    .map(b => b.text as string)
+    .join('\n'),
+  tools: blocks.filter(b => b?.type === 'tool_use' && typeof b.name === 'string').map(b => toolLine(b.name as string, b.input)),
+})
 
 /** Slash-command and local-command wrapper rows: not prompts, not jump targets. */
 export const isCommandWrapper = (text: string): boolean => {

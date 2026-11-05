@@ -236,7 +236,7 @@ export function registerPane(on: On, rowsOf: RowsOf) {
                 {s.text}
               </Text>
             ))}
-            <Text dimColor wrap="truncate">{` · #${m.n} · ${m.i} of ${m.k} in thread`}</Text>
+            <Text dimColor wrap="truncate">{` · #${m.n} · ${m.position} of ${m.familySize} in thread`}</Text>
           </Box>
           {m.reason ? <Text color="warning">{m.reason}</Text> : null}
           {m.bookmarks.map(b =>

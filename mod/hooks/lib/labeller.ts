@@ -2,7 +2,7 @@
 // and how a result lands in the data file. Spec "Labeller".
 import type { ConversationFile, Exchange } from '../../types/index'
 import { visibleThreads } from './chain'
-import { currentThread } from './model'
+import { currentThread, withExchange } from './model'
 import type { RowIndex } from './rows'
 
 /** Python's clip() in prototype-labeller/run.py. */
@@ -138,11 +138,6 @@ const mintId = (file: ConversationFile): string => {
 /** A thread id resolved through every thread's mergedFrom; undefined when unknown. */
 const resolveThread = (file: ConversationFile, id: string | undefined): string | undefined =>
   id === undefined ? undefined : file.threads.find(t => t.id === id || t.mergedFrom.includes(id))?.id
-
-const withExchange = (file: ConversationFile, id: string, fn: (x: Exchange) => Exchange): ConversationFile => ({
-  ...file,
-  exchanges: file.exchanges.map(x => (x.id === id ? fn(x) : x)),
-})
 
 /**
  * Applies a labeller result to one exchange (spec "Applying it"): places it in a

@@ -45,6 +45,13 @@ async function findTools($: EngineInterface): Promise<Tools> {
   return tools
 }
 
+/** Splits a whole text into lines for `onLine`. */
+const splitAll = (text: string, onLine: (line: string) => void): void => {
+  const split = lineSplitter()
+  split.push(text).forEach(onLine)
+  split.end().forEach(onLine)
+}
+
 export type ReadStats = { size: number; via: 'read' | 'spawn' | 'tail'; command?: string; pieces: number; ms: number }
 
 /**
@@ -55,9 +62,7 @@ export async function readTranscript($: EngineInterface, path: string, onLine: (
   const t0 = await $.clock.now()
   const { size } = await $.fs.stat(path)
   if (size <= READ_MAX) {
-    const split = lineSplitter()
-    split.push(await $.fs.read(path)).forEach(onLine)
-    split.end().forEach(onLine)
+    splitAll(await $.fs.read(path), onLine)
     return { size, via: 'read', pieces: 1, ms: (await $.clock.now()) - t0 }
   }
   const t = await findTools($)
@@ -95,9 +100,7 @@ export async function readTail($: EngineInterface, path: string, fromSize: numbe
   const { size } = await $.fs.stat(path)
   if (size < fromSize) return 'reread'
   if (size <= READ_MAX) {
-    const split = lineSplitter()
-    split.push(await $.fs.read(path)).forEach(onLine)
-    split.end().forEach(onLine)
+    splitAll(await $.fs.read(path), onLine)
     return { size, via: 'read', pieces: 1, ms: (await $.clock.now()) - t0 }
   }
   const bytes = size - fromSize + TAIL_SLACK
@@ -108,9 +111,6 @@ export async function readTail($: EngineInterface, path: string, fromSize: numbe
   const run = await $.process.run([tail, '-c', String(bytes), path], { timeoutMs: 10_000 }).catch(() => undefined)
   if (!run || run.exitCode !== 0) return 'reread'
   // The first line is cut by the byte offset: drop it (it was read before, TAIL_SLACK back).
-  const text = run.stdout.slice(run.stdout.indexOf('\n') + 1)
-  const split = lineSplitter()
-  split.push(text).forEach(onLine)
-  split.end().forEach(onLine)
+  splitAll(run.stdout.slice(run.stdout.indexOf('\n') + 1), onLine)
   return { size, via: 'tail', command: tail, pieces: 1, ms: (await $.clock.now()) - t0 }
 }

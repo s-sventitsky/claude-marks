@@ -12,7 +12,7 @@ Status: early MVP. This build tracks exchanges (rebuilt from the transcript JSON
 claude --plugin-dir /path/to/claude-marks/mod
 ```
 
-Data lives in `<config>/claude-marks/<sessionId>.json`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`. No transcript text is stored there.
+Data lives in `<config>/claude-marks/<sessionId>.json`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`. Of the transcript's text it stores only each exchange's prompt excerpt (about 80 characters) and the text of manual bookmarks (your note, else about 80 characters of the message); prompts and replies themselves are read from the transcript and kept in memory.
 
 ## Develop
 

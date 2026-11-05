@@ -1,8 +1,8 @@
 // Inline markers on transcript prompt rows: thread dividers and prompt glyphs. Pure.
 // Spec "Inline markers".
-import type { ConversationFile } from '../../types/index'
+import type { ConversationFile, Marker } from '../../types/index'
 import { GLYPH, colorOf } from './band'
-import type { Marker } from '../../types/index'
+import { threadById } from './model'
 
 export type { Marker }
 
@@ -18,23 +18,23 @@ export const markers = (file: ConversationFile): Record<string, Marker> => {
   let prev: string | undefined
   for (const ex of file.exchanges) {
     const tid = ex.thread?.id
-    const thread = tid ? file.threads.find(t => t.id === tid) : undefined
+    const thread = tid ? threadById(file, tid) : undefined
     const opens = thread !== undefined && thread.id !== prev
     if (tid) prev = tid
     const b = ex.bookmarks.find(x => !x.dismissed)
     if (!opens && !b) continue
-    const m: Marker = { color: colorOf(file, tid ?? prev ?? '') }
-    if (opens) m.divider = thread.parent ? `└ ${thread.label.text}` : thread.label.text
-    if (b) m.glyph = GLYPH[b.kind]
-    out[ex.id] = m
+    const marker: Marker = { color: colorOf(file, tid ?? prev ?? '') }
+    if (opens) marker.divider = thread.parent ? `└ ${thread.label.text}` : thread.label.text
+    if (b) marker.glyph = GLYPH[b.kind]
+    out[ex.id] = marker
   }
   return out
 }
 
 /** `── <text> ───` filling `cols - 1` columns; a head too long is cut with an ellipsis. */
 export const dividerLine = (text: string, cols: number): string => {
-  const w = Math.max(1, cols - 1)
+  const width = Math.max(1, cols - 1)
   const head = `── ${text} `
-  if (head.length > w) return head.slice(0, w - 1).trimEnd() + '…'
-  return head + '─'.repeat(w - head.length)
+  if (head.length > width) return head.slice(0, width - 1).trimEnd() + '…'
+  return head + '─'.repeat(width - head.length)
 }

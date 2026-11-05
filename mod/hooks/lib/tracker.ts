@@ -1,10 +1,13 @@
 // Turns the live stream of main-session events into exchanges and the row index.
 // Pure: each function takes the tracked state and returns the next one.
 import type { ConversationFile } from '../../types/index'
-import { addExchange, emptyFile, foldPrompt } from './model'
-import { emptyRows, isCommandWrapper, toolLine, type ExchangeRows, type RowIndex } from './rows'
+import { addExchange, foldPrompt } from './model'
+import { emptyRows, isCommandWrapper, replyParts, type ExchangeRows, type ResponseBlock, type RowIndex } from './rows'
 
-export type Turn = {
+export type { ResponseBlock }
+
+/** The live turn as the tracker follows it (chain.ts's `Turn` is a turn as the transcript holds it). */
+export type TurnState = {
   /** Between a main `turn.start` and its `turn.complete`. */
   running: boolean
   /** The exchange this turn adds to; null until its prompt (or anchor) arrives. */
@@ -17,17 +20,16 @@ export type Turn = {
   orphanTools: string[]
 }
 
-export type Tracked = { file: ConversationFile; index: RowIndex; turn: Turn }
+export type Tracked = { file: ConversationFile; index: RowIndex; turn: TurnState }
 
-export const idleTurn = (): Turn => ({ running: false, exchangeId: null, command: null, typed: [], orphanTools: [] })
+export const idleTurn = (): TurnState => ({ running: false, exchangeId: null, command: null, typed: [], orphanTools: [] })
 
-export const start = (sessionId: string, file: ConversationFile = emptyFile(sessionId)): Tracked => ({
+/** Tracking starts on a loaded (or empty) data file, with an empty row index and no turn running. */
+export const start = (file: ConversationFile): Tracked => ({
   file,
   index: {},
   turn: idleTurn(),
 })
-
-export type ResponseBlock = { type: string; text?: string; name?: string; input?: unknown }
 
 export type Submit = {
   text: string
@@ -98,17 +100,13 @@ export const topmost = (t: Tracked, rows: Iterable<string>): string | undefined 
   return best?.id
 }
 
-export const onTurnStart =(t: Tracked): Tracked => ({ ...t, turn: { ...t.turn, running: true } })
+export const onTurnStart = (t: Tracked): Tracked => ({ ...t, turn: { ...t.turn, running: true } })
 
 export const onTurnComplete = (t: Tracked): Tracked => ({ ...t, turn: idleTurn() })
 
 /** A response row (`session.append` door `response`, main session): reply text and tool lines. */
 export const onResponse = (t: Tracked, uuid: string, blocks: readonly ResponseBlock[]): Tracked => {
-  const text = blocks
-    .filter(b => b.type === 'text' && typeof b.text === 'string')
-    .map(b => b.text as string)
-    .join('\n')
-  const tools = blocks.filter(b => b.type === 'tool_use' && typeof b.name === 'string').map(b => toolLine(b.name as string, b.input))
+  const { text, tools } = replyParts(blocks)
   let next = t
   if (!next.turn.exchangeId && next.turn.running && next.turn.command && text.trim()) {
     const id = uuid

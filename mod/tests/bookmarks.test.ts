@@ -5,6 +5,8 @@ import {
   MARK_USAGE,
   NO_EXCHANGE,
   WHOLE,
+  menuValue,
+  rowOfMenuValue,
   anchorOf,
   heldValue,
   markLine,
@@ -138,7 +140,7 @@ describe('/mark end to end', () => {
   test('bad input changes nothing and says why', () => {
     expect(runMark(F, '#7', { rowsOf }, AT)).toEqual({ file: F, say: MARK_USAGE })
     expect(runMark(F, '#x', { rowsOf }, AT)).toEqual({ file: F, say: MARK_USAGE })
-    expect(runMark(null, '', { rowsOf }, AT)).toEqual({ file: null, say: NO_EXCHANGE })
+    expect(runMark(file([]), '', { rowsOf }, AT)).toEqual({ file: file([]), say: NO_EXCHANGE })
   })
 })
 
@@ -255,5 +257,14 @@ describe("the reader's m menu", () => {
     expect(anchorOf(marked('r2'), undefined)).toBe('a')
     expect(anchorOf(marked(), R)).toBe('a')
     expect(anchorOf(ex('a'), R)).toBe('a')
+  })
+})
+
+describe('menu values', () => {
+  test('a reply row and the whole exchange round-trip', () => {
+    expect(menuValue('r1')).toBe('row:r1')
+    expect(rowOfMenuValue(menuValue('r1'))).toBe('r1')
+    expect(menuValue(undefined)).toBe(WHOLE)
+    expect(rowOfMenuValue(WHOLE)).toBeUndefined()
   })
 })

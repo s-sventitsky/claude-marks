@@ -1,7 +1,7 @@
 // Reading the transcript JSONL: where it is, splitting streamed text into lines,
 // and filing each row into a Transcript (chain links plus the rows the mod reads).
 // Pure: no `$`. The Transcript is a cache in a module variable, so it is built in place.
-import { isCommandWrapper, promptText, toolLine } from './rows'
+import { isCommandWrapper, promptText, replyParts } from './rows'
 
 /**
  * What the mod keeps of a row it reads:
@@ -80,7 +80,7 @@ export const lineSplitter = () => {
 }
 
 /** Rows worth a JSON.parse: user rows without tool results, assistant rows, boundaries, queued commands. */
-export const keep = (line: string): boolean =>
+export const worthParsing = (line: string): boolean =>
   (line.includes('"type":"user"') && !line.includes('"tool_result"')) ||
   line.includes('"type":"assistant"') ||
   line.includes('"compact_boundary"') ||
@@ -117,12 +117,7 @@ const userRow = (r: Json): Row | undefined => {
 }
 
 const assistantRow = (r: Json): Row | undefined => {
-  const blocks: Json[] = Array.isArray(r.message?.content) ? r.message.content : []
-  const text = blocks
-    .filter(b => b?.type === 'text' && typeof b.text === 'string')
-    .map(b => b.text as string)
-    .join('\n')
-  const tools = blocks.filter(b => b?.type === 'tool_use' && typeof b.name === 'string').map(b => toolLine(b.name, b.input))
+  const { text, tools } = replyParts(Array.isArray(r.message?.content) ? r.message.content : [])
   return text.trim() || tools.length ? { kind: 'reply', text: text.trim() ? text : '', tools } : undefined
 }
 
@@ -188,7 +183,7 @@ export const ingest = (t: Transcript, line: string): void => {
   const seen = UUID.exec(line)
   const known = seen?.[1] ?? seen?.[2]
   if (known !== undefined && t.pos.has(known) && t.parent.get(known) !== undefined) return
-  if (keep(line)) {
+  if (worthParsing(line)) {
     const r = parseLine(line)
     if (r) ingestParsed(t, r)
     return

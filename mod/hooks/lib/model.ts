@@ -31,19 +31,56 @@ export const newExchange = (id: string, text: string): Exchange => ({
   label: { status: 'pending' },
 })
 
-/** Appends an exchange; an id already in the file is left as it is. */
-export const addExchange = (file: ConversationFile, id: string, text: string): ConversationFile =>
-  file.exchanges.some(x => x.id === id) ? file : { ...file, exchanges: [...file.exchanges, newExchange(id, text)] }
+export const exchangeById = (file: ConversationFile, id: string): Exchange | undefined => file.exchanges.find(x => x.id === id)
 
-/** Folds a prompt uuid into an exchange's prompts[]; unknown exchange or known uuid: unchanged. */
-export const foldPrompt = (file: ConversationFile, exchangeId: string, uuid: string): ConversationFile => {
-  const i = file.exchanges.findIndex(x => x.id === exchangeId)
-  const ex = file.exchanges[i]
-  if (!ex || ex.prompts.includes(uuid)) return file
+export const threadById = (file: ConversationFile, id: string): Thread | undefined => file.threads.find(t => t.id === id)
+
+/** A thread's main thread: itself, or its parent. */
+export const mainOf = (file: ConversationFile, t: Thread): Thread | undefined => (t.parent === null ? t : threadById(file, t.parent))
+
+/** Hidden when false. Absent: all live. Ticket 03's `isLive(view, id)` from chain.ts. */
+export type IsLive = (x: Exchange) => boolean
+
+/**
+ * What the transcript knows about each exchange, as the tree, the reader and Enter take it.
+ * Every part is optional: absent, every exchange is live, reachable and labelled or pending.
+ */
+export type ChainOptions = {
+  isLive?: IsLive
+  /** False: before the last compaction (and every row on the main screen). Absent: all reachable. */
+  isReachable?: (x: Exchange) => boolean
+  /** The gap rule's record (ChainView.unlabelled): exchanges the load left unlabelled. */
+  unlabelled?: readonly string[]
+}
+
+/** ChainOptions plus the mode, as the reader and Enter take them. */
+export type ViewOptions = ChainOptions & {
+  /** From the viewport: true fullscreen, false the main screen, undefined while unknown. */
+  fullscreen: boolean | undefined
+}
+
+/** The live exchanges, conversation order. */
+export const liveExchanges = (file: ConversationFile, isLive?: IsLive): Exchange[] => (isLive ? file.exchanges.filter(isLive) : file.exchanges)
+
+/** Replaces exchange `id` with `fn` of it; an unknown id, or `fn` returning it unchanged: the same file. */
+export const withExchange = (file: ConversationFile, id: string, fn: (x: Exchange) => Exchange): ConversationFile => {
+  const i = file.exchanges.findIndex(x => x.id === id)
+  const x = file.exchanges[i]
+  if (!x) return file
+  const next = fn(x)
+  if (next === x) return file
   const exchanges = file.exchanges.slice()
-  exchanges[i] = { ...ex, prompts: [...ex.prompts, uuid] }
+  exchanges[i] = next
   return { ...file, exchanges }
 }
+
+/** Appends an exchange; an id already in the file is left as it is. */
+export const addExchange = (file: ConversationFile, id: string, text: string): ConversationFile =>
+  exchangeById(file, id) ? file : { ...file, exchanges: [...file.exchanges, newExchange(id, text)] }
+
+/** Folds a prompt uuid into an exchange's prompts[]; unknown exchange or known uuid: unchanged. */
+export const foldPrompt = (file: ConversationFile, exchangeId: string, uuid: string): ConversationFile =>
+  withExchange(file, exchangeId, x => (x.prompts.includes(uuid) ? x : { ...x, prompts: [...x.prompts, uuid] }))
 
 /**
  * The current thread: the thread of the latest labelled exchange, or of the
@@ -54,7 +91,7 @@ export const currentThread = (file: ConversationFile, beforeId?: string): Thread
   const end = beforeId === undefined ? file.exchanges.length : file.exchanges.findIndex(x => x.id === beforeId)
   for (let i = (end < 0 ? file.exchanges.length : end) - 1; i >= 0; i--) {
     const id = file.exchanges[i]?.thread?.id
-    if (id) return file.threads.find(t => t.id === id)
+    if (id) return threadById(file, id)
   }
   return undefined
 }

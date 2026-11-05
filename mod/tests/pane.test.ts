@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { emptyFile } from '../hooks/lib/model'
-import { REASON, afterJump, bandTarget, enterAction, isNarrow, marksUsage, onPaneClose, openTarget, paneView, readTarget, readerKeys, treeKeys } from '../hooks/lib/pane'
+import { REASON, afterJump, bandTarget, enterAction, exchangeKey, hotkeyKey, isNarrow, isTreeRowKey, threadKey, marksUsage, onPaneClose, openTarget, paneView, readTarget, readerKeys, treeKeys } from '../hooks/lib/pane'
 import type { ConversationFile, Exchange } from '../types/index'
 
 const ex = (id: string): Exchange => ({
@@ -163,5 +163,16 @@ describe('the pane view', () => {
     expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'pick' }, 'person')).toBe('to-reader')
     expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'note' }, 'person')).toBe('to-reader')
     expect(onPaneClose({ kind: 'reader', id: 'a', menu: 'note' }, 'unload')).toBe('pass')
+  })
+})
+
+describe('element keys', () => {
+  test('tree rows and hotkeys', () => {
+    expect(exchangeKey('u1')).toBe('ex:u1')
+    expect(threadKey('t1')).toBe('th:t1')
+    expect(hotkeyKey('m')).toBe('key:m')
+    expect(isTreeRowKey(exchangeKey('u1'))).toBe(true)
+    expect(isTreeRowKey(threadKey('t1'))).toBe(true)
+    expect(isTreeRowKey(hotkeyKey('m'))).toBe(false)
   })
 })

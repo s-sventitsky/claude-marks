@@ -5,7 +5,7 @@ import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ChainView, ConversationFile, StoreIndexEntry } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
-import { gapRun, isLive, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { backOnChain, gapRun, isLive, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
 import { addBoundary, emptyTranscript, ingest, type Transcript } from './lib/jsonl'
 import { buildDynamic, settle } from './lib/labeller'
 import { dividerLine, markers } from './lib/markers'
@@ -256,6 +256,9 @@ const publishChain = async ($: EngineInterface) => {
   if (!tracked || !tr || tr.sessionId !== tracked.file.sessionId) return
   const view = viewOf(tr.t, tracked.file, unlabelled)
   if (JSON.stringify(view) === JSON.stringify(chainView)) return
+  // P1: exchanges a rewind hid while they waited go back to the labeller once their fork is live again.
+  const running = tracked.turn.exchangeId ? [tracked.turn.exchangeId] : []
+  queue.push(...backOnChain(tracked.file, chainView, view, [...queue, ...running]))
   chainView = view
   await update($, chainA, () => view)
   await publishMarkers($, tracked.file)

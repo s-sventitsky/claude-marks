@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { ConversationFile } from '../types/index'
-import { gapRun, isLive, isReachable, liveFile, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
+import { backOnChain, gapRun, isLive, isReachable, liveFile, liveSet, liveView, mergeBack, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from '../hooks/lib/chain'
 import { addBoundary, emptyTranscript, ingest } from '../hooks/lib/jsonl'
 import { addExchange, emptyFile } from '../hooks/lib/model'
 import * as J from './fixtures/jsonl'
@@ -252,6 +252,24 @@ describe('gapRun', () => {
 
   test('nothing after the last labelled one: nothing to do', () => {
     expect(gapRun(labelled(file('u1'), 'u1'), [], false)).toEqual({ queue: [], left: [] })
+  })
+})
+
+describe('backOnChain', () => {
+  const view = (hidden: string[], unlabelled: string[] = []) => ({ hidden, compacted: [], unlabelled })
+
+  test('exchanges hidden before and live now, still unlabelled, go back to the labeller, file order', () => {
+    const f = labelled(file('u1', 'u2', 'u3', 'u4'), 'u1')
+    expect(backOnChain(f, view(['u3', 'u2']), view(['u4']), [])).toEqual(['u2', 'u3'])
+  })
+
+  test('labelled, skipped (queued or running) and gap-rule-left ones stay out', () => {
+    const f = labelled(file('u1', 'u2', 'u3', 'u4'), 'u1')
+    expect(backOnChain(f, view(['u1', 'u2', 'u3', 'u4']), view([], ['u4']), ['u3'])).toEqual(['u2'])
+  })
+
+  test('no view before: nothing came back', () => {
+    expect(backOnChain(file('u1'), null, view([]), [])).toEqual([])
   })
 })
 

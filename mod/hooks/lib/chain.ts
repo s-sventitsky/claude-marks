@@ -168,6 +168,18 @@ export const gapRun = (file: ConversationFile, hidden: readonly string[], fresh:
   return { queue: run, left: [] }
 }
 
+/**
+ * Exchanges back on the active chain (hidden in `before`, live in `after`) that are still
+ * unlabelled: the labeller's again, file order. A rewind hid them while they waited (the
+ * drain drops hidden ones, the gap rule skips them); spec "Liveness": they reappear, pending
+ * until labelled. `skip`: queued and running ones. Ones the gap rule left stay left.
+ */
+export const backOnChain = (file: ConversationFile, before: ChainView | null, after: ChainView, skip: readonly string[]): string[] =>
+  file.exchanges
+    .filter(x => !x.thread && x.label.status !== 'done')
+    .map(x => x.id)
+    .filter(id => before?.hidden.includes(id) && isLive(after, id) && !skip.includes(id) && !after.unlabelled.includes(id))
+
 /** The file as the live chain sees it: hidden exchanges dropped, threads all kept (their colours hold). */
 export const liveView = (file: ConversationFile, hidden: readonly string[]): ConversationFile =>
   hidden.length ? { ...file, exchanges: file.exchanges.filter(x => !hidden.includes(x.id)) } : file

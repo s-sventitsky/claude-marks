@@ -5,6 +5,8 @@ import {
   MARK_USAGE,
   NO_EXCHANGE,
   WHOLE,
+  menuValue,
+  rowOfMenuValue,
   anchorOf,
   heldValue,
   markLine,
@@ -255,5 +257,14 @@ describe("the reader's m menu", () => {
     expect(anchorOf(marked('r2'), undefined)).toBe('a')
     expect(anchorOf(marked(), R)).toBe('a')
     expect(anchorOf(ex('a'), R)).toBe('a')
+  })
+})
+
+describe('menu values', () => {
+  test('a reply row and the whole exchange round-trip', () => {
+    expect(menuValue('r1')).toBe('row:r1')
+    expect(rowOfMenuValue(menuValue('r1'))).toBe('r1')
+    expect(menuValue(undefined)).toBe(WHOLE)
+    expect(rowOfMenuValue(WHOLE)).toBeUndefined()
   })
 })

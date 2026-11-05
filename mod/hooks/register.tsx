@@ -1,11 +1,12 @@
 // The only hooks module: thin adapters between engine events and the pure code in ./lib.
 // Module variables hold caches only (lost on hot reload); $.state holds the view model;
 // the data file on disk is the record.
-import { atom, read, update } from 'claude-code'
+import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ConversationFile, StoreIndexEntry } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
 import { buildDynamic, settle } from './lib/labeller'
+import { dividerLine, markers } from './lib/markers'
 import { emptyFile, parseFile } from './lib/model'
 import { configDir, dataPath } from './lib/paths'
 import { RULES } from './lib/rules'
@@ -27,6 +28,8 @@ import {
 const conv = atom({ plugin: 'marks', key: 'conv' } as const, null, { shape: 'conv-1' })
 const hereA = atom({ plugin: 'marks', key: 'here' } as const, null)
 const offA = atom({ plugin: 'marks', key: 'labellerOff' } as const, null)
+/** Inline marker per prompt row, a family keyed by exchange id (ticket 07). */
+const markerA = atom({ plugin: 'marks', key: 'marker' } as const, null)
 
 const FLUSH_MS = 1000
 const SWITCH_CHECK_MS = 250
@@ -81,9 +84,34 @@ const showStatus = ($: EngineInterface, file: ConversationFile | null) => {
   $.ui.status(text)
 }
 
+/** Marker members last written, by exchange id, as JSON. A reload starts empty and writes them all again. */
+const markerCache = new Map<string, string>()
+
+/**
+ * Writes the family member of each prompt row whose marker changed, so a label landing
+ * redraws only the rows it touches (one big `conv` read would redraw every row on every write).
+ */
+const publishMarkers = async ($: EngineInterface, file: ConversationFile | null) => {
+  const next = file ? markers(file) : {}
+  const writes: Promise<unknown>[] = []
+  for (const [id, m] of Object.entries(next)) {
+    const json = JSON.stringify(m)
+    if (markerCache.get(id) === json) continue
+    markerCache.set(id, json)
+    writes.push(update($, memberOf(markerA, { requestId: id }), () => m))
+  }
+  for (const id of [...markerCache.keys()]) {
+    if (id in next) continue
+    markerCache.delete(id)
+    writes.push(update($, memberOf(markerA, { requestId: id }), () => null))
+  }
+  await Promise.all(writes)
+}
+
 const publish = async ($: EngineInterface) => {
   const file = tracked?.file ?? null
   await update($, conv, () => file)
+  await publishMarkers($, file)
   showStatus($, file)
 }
 
@@ -338,10 +366,35 @@ export const register: Register = on => {
     )
   })
 
-  // `here`: these only note which rows are on screen; the timer does the rest.
+  // `here`: these note which rows are on screen; the timer does the rest.
+  // UserMessage also draws the inline markers (ticket 07): absolute Boxes over the engine's
+  // row, so nothing moves; the divider over the blank spacer row 0, the glyph over `>` on row 1.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     noteOnScreen(e.requestId, e.props.onScreen)
-    return next(e)
+    if (e.requestId === 'placeholder' || e.props.isExpanded || e.viewport?.isFullscreen !== true || e.props.origin.kind !== 'composer')
+      return next(e)
+    // Read before drawing: the row redraws when its marker is written (a label landing).
+    const m = await read($, memberOf(markerA, e))
+    const inner = await next(e)
+    if (!m) return inner
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        {inner}
+        {m.divider !== undefined ? (
+          <Box position="absolute" top={0} left={0}>
+            <Text color={m.color} wrap="truncate">
+              {dividerLine(m.divider, e.viewport.columns)}
+            </Text>
+          </Box>
+        ) : null}
+        {m.glyph !== undefined ? (
+          <Box position="absolute" top={1} left={0}>
+            <Text color={m.color}>{m.glyph}</Text>
+          </Box>
+        ) : null}
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {

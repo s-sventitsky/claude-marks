@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { ConversationFile } from '../types/index'
-import { BAND, SESSION_START, dataPath, fileOf, prompt, world } from './harness'
+import { BAND, SESSION_START, dataPath, fileOf, mirrored, prompt, replyText, toolUse, world } from './harness'
 import * as J from './fixtures/jsonl'
 
 const PATH = 'C:/cfg/projects/C--Projs-demo/s1.jsonl'
@@ -241,5 +241,79 @@ describe('liveness after load', () => {
     await $.session.start(SESSION_START)
     await s.clock.advance(100)
     expect(chainOf(s.w)?.compacted).toEqual(['u1'])
+  })
+})
+
+// An organization-managed plugin above the mod can send session.append past it, so the
+// mod never sees it. These tests raise no session.append unless they say so.
+describe('live tracking from the transcript', () => {
+  const complete = (turnId: string) => ({ answer: '', durationMs: 1, isAborted: false, turnId, reason: 'answer' }) as any
+  const turn2 = [J.human('u2', 'a1', 'prompt 2'), J.tool('t2', 'u2', 'Read', { file_path: 'a.ts' }), J.text('a2', 't2', 'reply 2')]
+  const placed = "## Exchange to place\nUser: prompt 2\nClaude's tool calls: Read a.ts\nClaude's final reply: reply 2"
+
+  test('with no session.append, a turn becomes an exchange with its rows and folded prompt, and is labelled', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(1)), data: data(ex('u1', true)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(100)
+    s.setTranscript(J.jsonl(...chat(1), J.human('u2', 'a1', 'prompt 2')))
+    await $.turn.start({ text: 'prompt 2', turnId: 'r2' } as any)
+    await s.clock.advance(100)
+    expect(mirrored(s.w)?.exchanges.map(x => [x.id, x.label.status])).toEqual([
+      ['u1', 'done'],
+      ['u2', 'pending'],
+    ])
+    s.setTranscript(
+      J.jsonl(...chat(1), J.human('u2', 'a1', 'prompt 2'), J.tool('t2', 'u2', 'Read', { file_path: 'a.ts' }), J.queued('q2', 't2', 'and b'), J.text('a2', 'q2', 'reply 2')),
+    )
+    await $.turn.complete(complete('r2'))
+    await s.clock.advance(600)
+    expect(s.calls).toHaveLength(1)
+    expect(s.calls[0].promptBlocks[1].text).toContain("## Exchange to place\nUser: prompt 2\nand b\nClaude's tool calls: Read a.ts\nClaude's final reply: reply 2")
+    const u2 = mirrored(s.w)?.exchanges.find(x => x.id === 'u2')
+    expect(u2?.prompts).toEqual(['u2', 'q2'])
+    expect(u2?.label.status).toBe('done')
+  })
+
+  test('a prompt row not written yet at turn.start is looked for again', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(1)), data: data(ex('u1', true)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(100)
+    await $.turn.start({ text: 'prompt 2', turnId: 'r2' } as any)
+    await s.clock.advance(100)
+    expect(mirrored(s.w)?.exchanges.map(x => x.id)).toEqual(['u1'])
+    s.setTranscript(J.jsonl(...chat(1), J.human('u2', 'a1', 'prompt 2')))
+    await s.clock.advance(600)
+    expect(mirrored(s.w)?.exchanges.map(x => x.id)).toEqual(['u1', 'u2'])
+  })
+
+  test('rows read from the tail first and appended after are applied once', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(1)), data: data(ex('u1', true)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(100)
+    s.setTranscript(J.jsonl(...chat(1), ...turn2))
+    await $.turn.start({ text: 'prompt 2', turnId: 'r2' } as any)
+    await s.clock.advance(100)
+    await $.session.append(prompt('u2', 'prompt 2') as any)
+    await $.session.append(toolUse('t2', 'Read', { file_path: 'a.ts' }) as any)
+    await $.session.append(replyText('a2', 'reply 2') as any)
+    await $.turn.complete(complete('r2'))
+    await s.clock.advance(600)
+    expect(s.calls).toHaveLength(1)
+    expect(s.calls[0].promptBlocks[1].text).toContain(placed)
+  })
+
+  test('rows appended first and read from the tail after are applied once', async ($, on) => {
+    const s = setup(on, { transcript: J.jsonl(...chat(1)), data: data(ex('u1', true)) })
+    await $.session.start(SESSION_START)
+    await s.clock.advance(100)
+    await $.turn.start({ text: 'prompt 2', turnId: 'r2' } as any)
+    await $.session.append(prompt('u2', 'prompt 2') as any)
+    await $.session.append(toolUse('t2', 'Read', { file_path: 'a.ts' }) as any)
+    await $.session.append(replyText('a2', 'reply 2') as any)
+    s.setTranscript(J.jsonl(...chat(1), ...turn2))
+    await $.turn.complete(complete('r2'))
+    await s.clock.advance(600)
+    expect(s.calls).toHaveLength(1)
+    expect(s.calls[0].promptBlocks[1].text).toContain(placed)
   })
 })

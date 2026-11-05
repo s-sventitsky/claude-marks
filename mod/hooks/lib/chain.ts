@@ -81,12 +81,36 @@ export const turnsOf = (t: Transcript): Turn[] => {
   return turns
 }
 
+/**
+ * The anchor of the turn the newest row belongs to, when that turn began at or after
+ * position `from` in `order`: its prompt row, or a command turn's first reply text row.
+ * Undefined: no row at or after `from` yet. Null: rows since `from`, but no anchor among
+ * them (a turn nobody typed, a command turn with no reply text yet, the end of an older turn).
+ */
+export const anchorSince = (t: Transcript, from: number): string | null | undefined => {
+  let u = t.newest
+  if (u === undefined || (t.pos.get(u) ?? -1) < from) return undefined
+  let reply: string | undefined
+  const seen = new Set<string>()
+  while (u !== undefined && !seen.has(u) && (t.pos.get(u) ?? -1) >= from) {
+    seen.add(u)
+    const row = t.rows.get(u)
+    if (row?.kind === 'prompt') return u
+    if (row?.kind === 'command') return reply ?? null
+    if (row?.kind === 'turn') return null
+    if (row?.kind === 'reply' && row.text) reply = u
+    u = stepBack(t, u)
+  }
+  return null
+}
+
 const mergeRows = (live: ExchangeRows | undefined, turn: Turn): ExchangeRows => {
   const read: ExchangeRows = { prompts: turn.prompts.map(p => p.text), replies: turn.replies, tools: turn.tools }
   if (!live) return read
   const seen = new Set(read.replies.map(r => r.uuid))
   return {
-    prompts: live.prompts.length ? live.prompts : read.prompts,
+    // A folded prompt the live path never saw (its append withheld) comes from the read.
+    prompts: live.prompts.length >= read.prompts.length ? live.prompts : read.prompts,
     replies: [...read.replies, ...live.replies.filter(r => !seen.has(r.uuid))],
     tools: read.tools.length >= live.tools.length ? read.tools : live.tools,
   }

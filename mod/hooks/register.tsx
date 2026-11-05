@@ -6,7 +6,7 @@ import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ChainView, ConversationFile } from '../types/index'
 import { HINT, band, statusLine } from './lib/band'
-import { gapRun, isLive, liveFile, liveView, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { anchorSince, gapRun, isLive, liveFile, liveView, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
 import { addBoundary, emptyTranscript } from './lib/jsonl'
 import { dividerLine } from './lib/markers'
 import { afterSettle, enqueue, headStep, refill, requeue, settleLive } from './lib/queue'
@@ -22,6 +22,8 @@ import { publishMarkers } from './markers'
 import { logRead, readNew, readWhole, type LoadedTranscript } from './pass'
 import { flush as flushFile, loadFile, scheduleFlush as markDirty } from './persist'
 import {
+  exchangeOfRow,
+  onAnchor,
   onPrompt,
   onQueued,
   onResponse,
@@ -72,6 +74,15 @@ let transcript: LoadedTranscript | null = null
 let unlabelled: string[] = []
 /** The chain view last published to $.state; the labeller and the status line read it. */
 let chainView: ChainView | null = null
+// Live tracking from the transcript: a managed plugin above the mod can send `session.append`
+// past it, so the turn events and the timer read the tail too (ticket 01 Comments).
+/** While a turn runs, the timer reads the tail every this many ticks. */
+const FOLLOW_TICKS = 4
+let ticks = 0
+/** Rows the transcript held when the last turn ended: the running turn's rows come after. */
+let turnFrom = 0
+/** Counts main turn starts, so a late look for an ended turn's exchange stops once the next starts. */
+let turnCount = 0
 /** Transcript reads run one at a time. */
 let io: Promise<unknown> = Promise.resolve()
 const serial = <T,>(work: () => Promise<T>): Promise<T> => {
@@ -120,6 +131,7 @@ const sync = async ($: EngineInterface): Promise<void> => {
     const { file, fromState } = await loadFile($, config, id)
     tracked = start(file)
     transcript = null
+    turnFrom = 0
     // P5: the gap rule's record from the file alone until the transcript pass redoes it.
     const fresh = file.exchanges.length === 0
     unlabelled = gapRun(file, [], fresh).left
@@ -223,8 +235,35 @@ const rebuild = ($: EngineInterface, sessionId: string, fresh: boolean) =>
       queue = r.queue
       return next
     })
+    // A turn running now began inside what was read: its anchor is looked for from the start.
+    if (!tracked?.turn.running) turnFrom = loaded.t.order.length
     await publishChain($)
   })
+
+/**
+ * Reads what the loaded transcript gained and brings its turns into the file and the row
+ * index (mergeTurns, deduped by uuid), then publishes liveness. With `from`: the exchange
+ * of the turn begun after row `from` (anchorSince), made the running turn's when no live
+ * prompt append named one. Runs inside `serial`. Undefined: no transcript loaded.
+ */
+const readTailIn = async ($: EngineInterface, from?: number): Promise<{ t: LoadedTranscript; exchange: string | null | undefined } | undefined> => {
+  const loaded = transcript
+  const path = loaded?.path
+  if (!loaded || path === undefined || tracked?.file.sessionId !== loaded.sessionId) return undefined
+  const stats = await readNew($, loaded, path)
+  if (stats.via !== 'read' && stats.via !== 'same') logRead($, 'tail', stats)
+  const anchor = from === undefined ? undefined : anchorSince(loaded.t, from)
+  let exchange: string | null | undefined = anchor
+  await commit($, cur => {
+    if (cur.file.sessionId !== loaded.sessionId) return cur
+    const next = stats.via === 'same' ? cur : { ...cur, ...mergeTurns(cur.file, cur.index, turnsOf(loaded.t)) }
+    if (!anchor) return next
+    exchange = exchangeOfRow(next, anchor) ?? null
+    return exchange ? onAnchor(next, exchange) : next
+  })
+  if (stats.via !== 'same') await publishChain($)
+  return { t: loaded, exchange }
+}
 
 /**
  * Decision 5 (rewinds): an append carries no parentUuid, so after each prompt append
@@ -233,18 +272,28 @@ const rebuild = ($: EngineInterface, sessionId: string, fresh: boolean) =>
  */
 const placePrompt = ($: EngineInterface, uuid: string, tries = 1): Promise<void> =>
   serial(async () => {
-    const loaded = transcript
-    const path = loaded?.path
-    if (!loaded || path === undefined || tracked?.file.sessionId !== loaded.sessionId) return
-    const stats = await readNew($, loaded, path)
-    if (!loaded.t.pos.has(uuid)) {
-      if (tries < TAIL_TRIES) $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => placePrompt($, uuid, tries + 1)))
-      return
-    }
-    if (stats.via !== 'read') logRead($, 'tail', stats)
-    await commit($, cur => (cur.file.sessionId === loaded.sessionId ? { ...cur, ...mergeTurns(cur.file, cur.index, turnsOf(loaded.t)) } : cur))
-    await publishChain($)
+    const r = await readTailIn($)
+    if (r && !r.t.t.pos.has(uuid) && tries < TAIL_TRIES) $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => placePrompt($, uuid, tries + 1)))
   })
+
+/** The tail read on its own, for the turn events and the timer: the exchange of the turn begun after row `from`. */
+const follow = ($: EngineInterface, from?: number) => serial(async () => (await readTailIn($, from))?.exchange)
+
+/** turn.start: the new prompt row should be on disk; until the running turn has an exchange, look again. */
+const followStart = async ($: EngineInterface, turn: number, tries = 1): Promise<void> => {
+  if (turn !== turnCount || !tracked?.turn.running || tracked.turn.exchangeId) return
+  await follow($, turnFrom)
+  if (tracked?.turn.running && !tracked.turn.exchangeId && tries < TAIL_TRIES)
+    $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => followStart($, turn, tries + 1)))
+}
+
+/** An ended turn whose exchange the tail did not show yet: look again and queue it, until the next turn starts. */
+const followEnded = async ($: EngineInterface, turn: number, from: number, tries = 1): Promise<void> => {
+  if (turn !== turnCount) return
+  const id = await follow($, from)
+  if (id) queue = enqueue(queue, id)
+  else if (tries < TAIL_TRIES) $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => followEnded($, turn, from, tries + 1)))
+}
 
 /**
  * One labeller step, from the timer: the head of the queue gets one call, and its
@@ -257,6 +306,8 @@ const drain = async ($: EngineInterface) => {
   try {
     await sync($) // decision 2: a switch is also looked for on the timer tick
     if (await read($, offA)) return
+    // The labeller reads the row index: bring in reply rows written since the turn ended.
+    if (queue.length) await follow($)
     const t = tracked
     if (!t) return
     // Live exchanges only: a rewound one waits (pending) in case the conversation returns to it.
@@ -304,6 +355,8 @@ const tick = ($: EngineInterface) => {
   void guard($, 'mode', () => fixMode($))
   void guard($, 'here', () => updateHere($))
   void guard($, 'labeller', () => drain($))
+  // The safety net for a withheld session.append: a running turn's rows, every 2 s.
+  if (++ticks % FOLLOW_TICKS === 0 && tracked?.turn.running) void guard($, 'tail', async () => void (await follow($, turnFrom)))
 }
 
 /** Render hooks note which rows are on screen; `null` is off screen, absent says nothing. */
@@ -344,6 +397,9 @@ export const register: Register = on => {
     const r = await next(e)
     if (e.agentId !== undefined) return r
     await guard($, `append ${e.door}`, async () => {
+      // The fast path. A row the tail read has brought in already is not applied twice.
+      const known = transcript?.sessionId === tracked?.file.sessionId && transcript?.t.pos.has(e.uuid)
+      if (known && e.message.name !== 'compact_boundary') return
       if (e.door === 'prompt' && e.origin.kind === 'composer' && !e.message.isMeta) {
         const text = promptText(e.message.content)
         await commit($, t => onPrompt(t, e.uuid, text), true)
@@ -379,20 +435,33 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined) await guard($, 'turn.start', () => commit($, onTurnStart))
+    if (e.agentId === undefined) {
+      const turn = ++turnCount
+      await guard($, 'turn.start', () => commit($, onTurnStart))
+      // Off the hook path: the prompt row from the transcript, when no prompt append names the exchange.
+      $.clock.after(0, () => void guard($, 'tail', () => followStart($, turn)))
+    }
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     if (e.agentId !== undefined) return r
-    // Queue the turn's exchange for the labeller; the timer makes the call, never this dispatch.
-    await guard($, 'turn.complete', () =>
-      commit($, t => {
-        queue = enqueue(queue, t.turn.exchangeId)
+    // The tail first, so the exchange has its reply rows (and its id, with no prompt append);
+    // then queue it for the labeller. The timer makes the call, never this dispatch.
+    await guard($, 'turn.complete', async () => {
+      const from = turnFrom
+      await follow($, from)
+      let id: string | null = null
+      await commit($, t => {
+        id = t.turn.exchangeId
+        queue = enqueue(queue, id)
         return onTurnComplete(t)
-      }),
-    )
+      })
+      if (transcript && transcript.sessionId === tracked?.file.sessionId) turnFrom = transcript.t.order.length
+      const turn = turnCount
+      if (!id) $.clock.after(TAIL_RETRY_MS, () => void guard($, 'tail', () => followEnded($, turn, from)))
+    })
     return r
   })
 

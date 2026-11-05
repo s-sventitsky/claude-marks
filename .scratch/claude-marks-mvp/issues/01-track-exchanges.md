@@ -33,3 +33,26 @@ Manual check pending: a jump to a slash-command or skill turn's anchor (its firs
 Manual check pending: the live shape of a prompt typed during a running turn. The debug log (`claude --debug`) prints `marks: queued_command door=... type=... origin=...`; confirm it arrives as an attachment row named `queued_command` after a composer `prompt.submit` with `turnId`, and that it folds into the turn's exchange.
 Manual check pending: in a real session, `/clear` and in-session `/resume` switch the data file (old file flushed, band shows the new conversation's count), and a hot reload (save a file under `mod/`) keeps `#n/N`.
 Manual check pending: slash-command and skill turns do not also arrive as door-`prompt` composer rows that would make a second exchange (wrapper rows starting `<command-` or `<local-command` are filtered).
+
+Fix on branch `mvp-fix-append` (2026-11-05): `session.append` can never reach the mod.
+- Found live: the organization-managed plugin `cc-plugin-sec-default` sits above the mod on `session.append` and sends the event past it (`next.to` a deeper tier). The engine reported "marks: its session.append hook was skipped". A user plugin cannot get around a managed one. So new exchanges, reply text rows, tool lines, `queued_command` folds and live `compact_boundary` rows never arrived. `turn.start`, `turn.complete`, `prompt.submit`, `session.start` and the render hooks still arrive.
+- Fix: the transcript JSONL is now also the live source. `register.tsx` `readTailIn` reads the tail (ticket 03's `readNew`/`readTail`) and brings it in with `mergeTurns(turnsOf(t))`, the same merge the load pass uses. Rows are deduped by uuid: exchanges by id, folded prompts by uuid, reply rows by uuid, tool lines by the longer list.
+- When the tail is read:
+  - On `turn.start`, off the hook path. It retries every 500 ms, up to 6 tries, until the running turn has an exchange.
+  - On `turn.complete`, after `next`, before the enqueue, so the labeller sees the reply rows. When no exchange shows yet, it looks again and queues the exchange late, until the next turn starts.
+  - Before each labeller call.
+  - Every 2 s while a turn runs, from the 500 ms timer.
+  - A tail read whose file size has not changed reads nothing (`via: 'same'`).
+- The running turn's exchange, when no prompt append names it: `chain.ts` `anchorSince(t, turnFrom)`. It walks back from the newest row to its turn's prompt row (or a command turn's first reply text row), counting only rows after `turnFrom`, the row count at the end of the last turn. `tracker.ts` `onAnchor` sets it only if no prompt append did.
+- Folded mid-turn prompts come from the JSONL `queued_command` attachment rows (`turnsOf`). `mergeRows` now takes the read prompt texts when the read has more than the live path.
+- Boundaries come from the JSONL rows.
+- `session.append` stays the fast path. A row the tail already brought in (its uuid is in the transcript) is skipped there, so it is applied once.
+- Tests: `mod/tests/rebuild.test.ts` "live tracking from the transcript". It covers no `session.append` at all, a prompt row written after `turn.start`, and both arrival orders of the same rows.
+- Limits with `session.append` withheld:
+  - An exchange appears up to ~0.5 s after `turn.start` (more if the row is late).
+  - Reply rows land every 2 s mid-turn.
+  - Rewind placement waits for the next turn event.
+  - A live compaction shows at the next read.
+  - Labels come as before: a call on the first tick after `turn.complete`.
+  - A prompt typed during a turn folds once its `queued_command` row is on disk, not from the `prompt.submit` text.
+Manual check pending: in the session with `cc-plugin-sec-default`, a new prompt shows in the band within about a second, and is labelled after its turn ends.

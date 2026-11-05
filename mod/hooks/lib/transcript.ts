@@ -52,7 +52,8 @@ const splitAll = (text: string, onLine: (line: string) => void): void => {
   split.end().forEach(onLine)
 }
 
-export type ReadStats = { size: number; via: 'read' | 'spawn' | 'tail'; command?: string; pieces: number; ms: number }
+/** `same`: a tail read found the file the size it was, and read nothing. */
+export type ReadStats = { size: number; via: 'read' | 'spawn' | 'tail' | 'same'; command?: string; pieces: number; ms: number }
 
 /**
  * Reads the whole transcript, a line at a time into `onLine`. 4 MiB or less: one
@@ -91,7 +92,7 @@ export async function readTranscript($: EngineInterface, path: string, onLine: (
 
 /**
  * Reads what was appended since the file was `fromSize` long, a line at a time;
- * lines already read come again and the caller skips them by uuid. 4 MiB or less:
+ * lines already read come again and the caller skips them by uuid. The same size: nothing. 4 MiB or less:
  * the whole file. Larger: `tail -c` through `$.process.run`. `reread` when only a
  * whole read will do (the file shrank, grew past 4 MiB at once, or no tail exists).
  */
@@ -99,6 +100,7 @@ export async function readTail($: EngineInterface, path: string, fromSize: numbe
   const t0 = await $.clock.now()
   const { size } = await $.fs.stat(path)
   if (size < fromSize) return 'reread'
+  if (size === fromSize) return { size, via: 'same', pieces: 0, ms: (await $.clock.now()) - t0 }
   if (size <= READ_MAX) {
     splitAll(await $.fs.read(path), onLine)
     return { size, via: 'read', pieces: 1, ms: (await $.clock.now()) - t0 }

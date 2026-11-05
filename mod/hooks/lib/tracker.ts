@@ -102,6 +102,13 @@ export const topmost = (t: Tracked, rows: Iterable<string>): string | undefined 
 
 export const onTurnStart = (t: Tracked): Tracked => ({ ...t, turn: { ...t.turn, running: true } })
 
+/**
+ * The running turn's exchange as the transcript's tail places it (chain.ts anchorSince),
+ * for a turn no live prompt append named: a plugin above the mod can withhold `session.append`.
+ */
+export const onAnchor = (t: Tracked, exchangeId: string): Tracked =>
+  t.turn.running && !t.turn.exchangeId ? { ...t, turn: { ...t.turn, exchangeId, command: null, orphanTools: [] } } : t
+
 export const onTurnComplete = (t: Tracked): Tracked => ({ ...t, turn: idleTurn() })
 
 /** A response row (`session.append` door `response`, main session): reply text and tool lines. */

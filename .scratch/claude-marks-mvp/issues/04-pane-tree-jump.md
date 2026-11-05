@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Label new turns)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] `/marks` opens the pane focused, `closeOnEscape`, 14 rows, cursor on the exchange last jumped to (the latest if none). A band click opens it on the band's exchange. Any `/marks` argument prints `usage: /marks`.
 - [x] The tree lists main threads by first live exchange, headers bold in their colour with counts (`k ex  ◆1 ◇3 ↳1`, just `k` when narrow). Under each, its own and its sub-threads' exchanges in conversation order as `› n glyphs gist`; a sub-thread header ` └ label` before its first exchange, its exchanges indented. The last-jumped exchange has `›`, the band's exchange is bold, unreachable ones are dim, pending ones show `…`, and exchanges with no gist show their excerpt.

@@ -29,7 +29,7 @@ export const mirrored = (w: World): ConversationFile | null | undefined => {
 }
 
 // Wires the hooks a session start needs: env, session id, fs in memory, status capture, store.
-export const world = (on: any, mock: any, opts: { sessionId?: string; files?: Record<string, string> } = {}): World => {
+export const world = (on: any, mock: any, opts: { sessionId?: string; files?: Record<string, string>; env?: Record<string, string> } = {}): World => {
   const w: World = {
     files: new Map(Object.entries(opts.files ?? {})),
     status: [],
@@ -40,13 +40,17 @@ export const world = (on: any, mock: any, opts: { sessionId?: string; files?: Re
     commands: [],
     sessionId: { current: opts.sessionId ?? 's1' },
   }
-  mock.env(on, { CLAUDE_CONFIG_DIR: CONFIG })
+  mock.env(on, { CLAUDE_CONFIG_DIR: CONFIG, ...opts.env })
   on('store.get', (_: unknown, e: any) => ({ value: w.store.get(e.key) }))
   on('store.set', (_: unknown, e: any) => {
     w.store.set(e.key, JSON.parse(JSON.stringify(e.value)))
     return { value: undefined }
   })
   on('store.keys', () => ({ value: [...w.store.keys()] }))
+  on('store.delete', (_: unknown, e: any) => {
+    w.store.delete(e.key)
+    return { value: undefined }
+  })
   // Observe what the plugin mirrors into $.state; the kit's own state lies beneath.
   on('state.set', (_: unknown, e: any, next: any) => {
     w.state.set(e.key, e.value)

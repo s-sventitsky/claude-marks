@@ -1,5 +1,5 @@
 // The hooks module's entry: wiring between engine events and the pure code in ./lib, with
-// thin adapters beside it (persist, markers, pass, labeller, pane, mode).
+// thin adapters beside it (persist, markers, pass, labeller, pane, mode, cleanup).
 // Module variables hold caches only (lost on hot reload); $.state holds the view model;
 // the data file on disk is the record.
 import { atom, memberOf, read, update } from 'claude-code'
@@ -15,6 +15,7 @@ import { NO_EXCHANGE, menuTarget, noteManual, pickMark, runMark } from './lib/bo
 import { PANE_ID } from './lib/pane'
 import { openFromBand, registerMarksCommand, registerPane } from './pane'
 import { configDir } from './lib/paths'
+import { cleanUp } from './cleanup'
 import { promptText } from './lib/rows'
 import { MODEL, askLabeller } from './labeller'
 import { log, reasonOf } from './log'
@@ -378,6 +379,7 @@ export const register: Register = on => {
         .catch(err => log($, `register /mark: ${reasonOf(err)}`))
       await sync($)
       showStatus($, tracked?.file ?? null)
+      if (config) await cleanUp($, config, await $.session.id())
     })
     // session.start can run again without a reload (in-session /resume): one timer only.
     tickTimer?.cancel()

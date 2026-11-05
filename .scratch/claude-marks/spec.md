@@ -344,7 +344,7 @@ Not decided in a ticket. The builder may use them; the user can veto.
 - Labeller blocked by the engine: stop the drain, show `labeller off: <reason>` in the band.
 - Thread ids `t1`, `t2`, ... in mint order. Debounced write ~1 s. Clip lengths for label, gist and why.
 - Pending exchanges show in the current thread with `…`.
-- `$.store` index is written but nothing cleans old files yet.
+- Cleanup: at the first session start after a module load, data files and `$.store` index entries not written for more than 14 days are deleted, never the current conversation's (user, 2026-11-05). A conversation resumed after that starts over: its old exchanges become Unlabelled.
 - Unlabelled runs over 10 go to a dim "Unlabelled" group with a band hint `N unlabelled` (user, 2026-11-04).
 - Reply-block glyph clicks are after the MVP (user, 2026-11-04).
 

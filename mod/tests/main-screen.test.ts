@@ -87,13 +87,13 @@ describe('main screen', () => {
   test("the band shows the latest exchange's thread as latest #n/N", async ($, on) => {
     await setup($, on)
     const ui = await $.ui.mount(band(false) as any)
-    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · latest #3/3 · click or /marks')
+    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · latest #3/3 · 2 threads · click or /marks')
   })
 
   test('while the mode is unknown the band says here', async ($, on) => {
     await setup($, on)
     const ui = await $.ui.mount(band() as any)
-    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · here #3/3 · click or /marks')
+    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · here #3/3 · 2 threads · click or /marks')
   })
 
   test('a drawing that reports the main screen fixes the mode for drawings that do not say', async ($, on) => {
@@ -102,7 +102,7 @@ describe('main screen', () => {
     await s.clock.advance(600)
     await first.unmount()
     const ui = await $.ui.mount(band() as any)
-    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · latest #3/3 · click or /marks')
+    expect((await ui.find({ type: 'Button', key: 'band' }))?.text).toBe('● Login · latest #3/3 · 2 threads · click or /marks')
     const p = await $.ui.mount(pane() as any)
     expect(await p.find({ type: 'Text', text: MAIN_SENTENCE })).toBeDefined()
   })

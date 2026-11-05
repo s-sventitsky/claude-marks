@@ -184,7 +184,7 @@ describe('conversation switches', () => {
   })
 })
 
-describe('band and status line', () => {
+describe('band', () => {
   test('the band draws nothing with no exchanges, then labelling… until a label lands', async ($, on) => {
     mock.clock(on)
     const w = world(on, mock)
@@ -198,11 +198,11 @@ describe('band and status line', () => {
     await ui.unmount()
   })
 
-  test('the status line reads /marks · 0 threads, set once', async ($, on) => {
+  test('the mod leaves the status line empty', async ($, on) => {
     mock.clock(on)
     const w = world(on, mock)
     await $.session.start(SESSION_START)
     await $.session.append(prompt('u1', 'one') as any)
-    expect(w.status).toEqual(['/marks · 0 threads'])
+    expect(w.status).toEqual([])
   })
 })

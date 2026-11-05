@@ -5,8 +5,8 @@
 import { atom, memberOf, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { ChainView, ConversationFile } from '../types/index'
-import { HINT, band, statusLine } from './lib/band'
-import { anchorSince, gapRun, isLive, liveFile, liveView, mergeTurns, turnsOf, unlabelledCount, viewOf, visibleThreads } from './lib/chain'
+import { HINT, band } from './lib/band'
+import { anchorSince, gapRun, isLive, liveFile, liveView, mergeTurns, turnsOf, unlabelledCount, viewOf } from './lib/chain'
 import { addBoundary, emptyTranscript } from './lib/jsonl'
 import { dividerLine } from './lib/markers'
 import { afterSettle, enqueue, headStep, refill, requeue, settleLive } from './lib/queue'
@@ -60,7 +60,6 @@ let lastHere: string | null = null
 
 let tracked: Tracked | null = null
 let config: string | undefined
-let lastStatus: string | null = null
 /** A conversation load in flight; steps wait for it so none applies to the old file. */
 let switching: Promise<void> | null = null
 
@@ -73,7 +72,7 @@ const TAIL_TRIES = 6
 let transcript: LoadedTranscript | null = null
 /** Exchanges the gap-on-load rule left unlabelled (the band's `N unlabelled`). */
 let unlabelled: string[] = []
-/** The chain view last published to $.state; the labeller and the status line read it. */
+/** The chain view last published to $.state; the labeller reads it. */
 let chainView: ChainView | null = null
 // Live tracking from the transcript: a managed plugin above the mod can send `session.append`
 // past it, so the turn events and the timer read the tail too (ticket 01 Comments).
@@ -99,19 +98,10 @@ const readConfig = async ($: EngineInterface) =>
     USERPROFILE: await $.env.get('USERPROFILE'),
   })
 
-const showStatus = ($: EngineInterface, file: ConversationFile | null) => {
-  // Threads with no live exchange are hidden, so not counted.
-  const text = statusLine(file && chainView ? { ...file, threads: visibleThreads(liveFile(file, chainView)) } : file)
-  if (text === lastStatus) return
-  lastStatus = text
-  $.ui.status(text)
-}
-
 const publish = async ($: EngineInterface) => {
   const file = tracked?.file ?? null
   await update($, fileA, () => file)
   await publishMarkers($, file, chainView)
-  showStatus($, file)
 }
 
 const flush = ($: EngineInterface) => flushFile($, tracked?.file ?? null, config)
@@ -211,7 +201,6 @@ const publishChain = async ($: EngineInterface) => {
   chainView = view
   await update($, chainA, () => view)
   await publishMarkers($, tracked.file, chainView)
-  showStatus($, tracked.file)
 }
 
 /**
@@ -369,7 +358,6 @@ const noteOnScreen = (requestId: string, seen: unknown) => {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    lastStatus = null
     await guard($, 'session.start', async () => {
       config = await readConfig($)
       await registerMarksCommand($)
@@ -378,7 +366,6 @@ export const register: Register = on => {
         .register({ name: 'mark', description: 'Bookmark the latest reply, or exchange #n: /mark [#n] [note]', immediate: true })
         .catch(err => log($, `register /mark: ${reasonOf(err)}`))
       await sync($)
-      showStatus($, tracked?.file ?? null)
       if (config) await cleanUp($, config, await $.session.id())
     })
     // session.start can run again without a reload (in-session /resume): one timer only.

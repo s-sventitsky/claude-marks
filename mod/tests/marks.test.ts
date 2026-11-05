@@ -218,7 +218,7 @@ describe('the band', () => {
     const band = await $.ui.mount(BAND as any)
     const buttons = await band.findAll({ type: 'Button' })
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]?.text).toBe('● Login · here #3/3 · click or /marks')
+    expect(buttons[0]?.text).toBe('● Login · here #3/3 · 2 threads · click or /marks')
     await band.press({ key: 'band' })
     expect(s.opens).toHaveLength(1)
     const ui = await $.ui.mount(PANE as any)

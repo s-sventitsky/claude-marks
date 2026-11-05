@@ -21,7 +21,7 @@ The MVP is navigation for new turns: label, show where you are, list everything,
 |---|---|---|
 | **MVP** | Labeller on new turns (Haiku, hardcoded) | [Labeller](#labeller) |
 | | Per-conversation data file, `$.state` mirror, transcript pass | [Data file](#data-file), [Lifecycle](#lifecycle) |
-| | Band above the prompt, status-line hint | [Band](#band), [Status line](#status-line) |
+| | Band above the prompt | [Band](#band) |
 | | Transient side pane: tree, Enter jumps, `p` reader, Esc | [Pane](#pane) |
 | | `/mark [#n] [note]`, the reader's `m` | [Commands](#commands), [Reader](#reader) |
 | | Inline thread dividers and prompt glyphs (always on) | [Inline markers](#inline-markers) |
@@ -39,7 +39,7 @@ One mod, one hooks module. Suggested split inside it:
 2. **Transcript pass.** Reads the JSONL once per load and builds the in-memory row index (prompt rows, reply text rows, tool lines, parent chain, compaction boundary). Kept current from `session.append`.
 3. **Labeller.** A queue of exchanges, drained by a timer, one `$.model.complete` call each, results validated and applied to the data.
 4. **Store.** The data file plus its `$.state` mirror; a debounced writer.
-5. **UI.** Band, status line, pane (tree and reader), transcript-row markers, commands.
+5. **UI.** Band, pane (tree and reader), transcript-row markers, commands.
 
 Module variables hold only caches and queues (the row index, the labeller queue, the last-jump pointer). They are lost on a hot reload and rebuilt on load. `$.state` holds the live view model; render hooks may only read it ([Persistence across resume and compaction](issues/03-persistence-resume-compaction.md)).
 
@@ -231,19 +231,20 @@ Colours and glyphs follow [UI: band, pane and inline markers](issues/06-ui-proto
 One line above the prompt (`AbovePrompt`):
 
 ```
-● Main › Sub · here #n/N ◇ · click or /marks
+● Main › Sub · here #n/N ◇ · K threads · click or /marks
 ```
 
 - `● Main › Sub` in the thread's colour. A main thread shows only its label.
 - `here #n/N`: in fullscreen, the exchange at the top of the viewport (the topmost exchange with a prompt or reply row on screen, from the rows' `onScreen` reports). `N` is the number of live exchanges.
 - The exchange's glyphs, in the thread's colour.
+- `K threads`, dim: the threads that have a live exchange, plus the main threads of such sub-threads (user, 2026-11-05: moved here from the status line).
 - The hint: `click or /marks`. It is replaced by `N unlabelled` when there is an unlabelled run, and by `labeller off: <reason>` when the labeller stopped.
 - Before the first label lands, the band shows `○ labelling… · click or /marks`. With no exchanges, it draws nothing.
 - The whole band is one plain `Button`. A click opens the pane on the band's exchange.
 
 ### Status line
 
-Only the opening hint, agents style: `/marks · N threads` (plain text, `$.ui.status`, set only when it changes).
+The mod sets no status line (user, 2026-11-05). The thread count is in the band.
 
 ### Pane
 

@@ -113,7 +113,7 @@ describe('rebuild on load', () => {
     await $.session.start(SESSION_START)
     await s.clock.advance(1500)
     expect(s.calls).toHaveLength(0)
-    expect(await bandText($)).toBe('● Login · here #12/12 · 11 unlabelled')
+    expect(await bandText($)).toBe('● Login · here #12/12 · 1 thread · 11 unlabelled')
   })
 
   test('the gap record is published with the file, before the transcript pass', async ($, on) => {
@@ -157,7 +157,7 @@ describe('liveness after load', () => {
     const s = setup(on, { transcript: J.jsonl(...chat(2)), data: data(ex('u1', true), ex('u2', true)) })
     await $.session.start(SESSION_START)
     await s.clock.advance(100)
-    expect(await bandText($)).toBe('● Login · here #2/2 · click or /marks')
+    expect(await bandText($)).toBe('● Login · here #2/2 · 1 thread · click or /marks')
     // Rewound to before u2: the new prompt hangs off a1.
     s.setTranscript(J.jsonl(...chat(2), J.human('u3', 'a1', 'prompt 3')))
     await $.session.append(prompt('u3', 'prompt 3') as any)

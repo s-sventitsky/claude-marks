@@ -1,6 +1,7 @@
-// What the band above the prompt and the status line say. Pure.
+// What the band above the prompt says. Pure.
 import type { ThemeKey } from 'claude-code'
 import type { BookmarkKind, ConversationFile, Exchange, Thread } from '../../types/index'
+import { visibleThreads } from './chain'
 import { currentThread, mainOf, threadById } from './model'
 
 /** Main threads take these by index among main threads, wrapping. Spec "UI". */
@@ -54,7 +55,8 @@ export type BandOptions = Here & {
 }
 
 /**
- * The band's line as coloured segments: `● Main › Sub · here #n/N ◇ · hint`.
+ * The band's line as coloured segments: `● Main › Sub · here #n/N ◇ · K threads · hint`.
+ * K counts the threads with an exchange in `file` (and mains of those subs).
  * `○ labelling… · hint` before the first label; undefined (draw nothing) with no exchanges.
  * Callers pass the live view (liveView in chain.ts), so N counts live exchanges.
  */
@@ -72,12 +74,8 @@ export const band = (file: ConversationFile | null, o: BandOptions): Segment[] |
   out.push({ text: ` · ${o.fullscreen ? 'here' : 'latest'} #${i + 1}/${all.length}`, dim: true })
   const g = glyphs(ex)
   if (g) out.push({ text: ` ${g}`, color })
+  const k = visibleThreads(file).length
+  out.push({ text: ` · ${k} ${k === 1 ? 'thread' : 'threads'}`, dim: true })
   out.push(hint)
   return out
-}
-
-/** The status-line hint: `/marks · N threads`. */
-export const statusLine = (file: ConversationFile | null): string => {
-  const n = file?.threads.length ?? 0
-  return `/marks · ${n} ${n === 1 ? 'thread' : 'threads'}`
 }

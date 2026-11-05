@@ -35,6 +35,18 @@ export const promptText = (content: unknown): string => {
     .join('\n')
 }
 
+/** A content block of an assistant row, as the transcript and `session.append` carry it. */
+export type ResponseBlock = { type: string; text?: string; name?: string; input?: unknown }
+
+/** An assistant row's text blocks joined, and one tool line per tool call. */
+export const replyParts = (blocks: readonly ResponseBlock[]): { text: string; tools: string[] } => ({
+  text: blocks
+    .filter(b => b?.type === 'text' && typeof b.text === 'string')
+    .map(b => b.text as string)
+    .join('\n'),
+  tools: blocks.filter(b => b?.type === 'tool_use' && typeof b.name === 'string').map(b => toolLine(b.name as string, b.input)),
+})
+
 /** Slash-command and local-command wrapper rows: not prompts, not jump targets. */
 export const isCommandWrapper = (text: string): boolean => {
   const s = text.trimStart()

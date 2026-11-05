@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Track exchanges into the conversation file)
 
-**Status:** implemented (pending merge)
+**Status:** resolved (merged to mvp; manual checks pending)
 
 - [x] `turn.complete` awaits `next(e)`, enqueues the exchange and returns. A `$.clock` timer started in `session.start` drains the queue one call at a time, in conversation order. Nothing awaits the model inside a dispatch.
 - [x] Each call is `$.model.complete` with `haiku`, `effort: 'low'`, the v3 labeller rules verbatim as the first cached block, and the dynamic part built as in the labeller prototype: threads so far (last 2 gists, current marked), the previous exchange (prompt, last 1200 chars of its reply), this exchange (joined prompts, up to 15 tool lines, reply head 2000 + tail 1000).
